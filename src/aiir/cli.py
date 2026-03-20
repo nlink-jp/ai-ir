@@ -655,45 +655,61 @@ def report(
     help="Output file (default: <stem>.<lang>.json next to input).",
 )
 def translate(report_file: Path, lang: str, output: Path | None) -> None:
-    """Translate a report JSON into another language.
+    """Translate a report or review JSON into another language.
 
-    Translates narrative fields (title, summary, procedure, etc.) while
+    Translates narrative fields (title, summary, procedure, notes, etc.) while
     preserving technical content: tool names, commands, IOCs, IDs, tags.
 
-    The source report JSON (English) is not modified. A new file is saved
-    alongside it with the language code in the filename, e.g. report.ja.json.
+    The source JSON (English) is not modified. A new file is saved alongside it
+    with the language code in the filename, e.g. report.ja.json or
+    report.review.ja.json.
 
     Example:
 
         aiir translate report.json --lang ja
+        aiir translate report.review.json --lang ja
     """
-    from aiir.translate.translator import SUPPORTED_LANGS, translate_report
+    from aiir.translate.translator import SUPPORTED_LANGS, translate_report, translate_review
 
     with open(report_file, encoding="utf-8") as f:
-        report_data = json.load(f)
+        input_data = json.load(f)
 
-    if "summary" not in report_data or "tactics" not in report_data:
+    # Auto-detect file type: review JSON has "phases" key; report has "summary"+"tactics"
+    is_review = "phases" in input_data
+    is_report = "summary" in input_data and "tactics" in input_data
+
+    if not is_review and not is_report:
         err_console.print(
-            "[red][ERROR] Input does not look like an aiir report JSON "
-            "(missing 'summary' or 'tactics' keys).[/red]"
+            "[red][ERROR] Input does not look like an aiir report or review JSON.[/red]"
         )
         sys.exit(1)
 
-    if output is None:
-        output = report_file.parent / f"{report_file.stem}.{lang}.json"
+    lang_label = f"{'known' if lang in SUPPORTED_LANGS else 'custom'} language"
 
-    client = _get_llm_client()
+    if is_review:
+        if output is None:
+            # report.review.json → report.review.ja.json
+            output = report_file.parent / f"{report_file.stem}.{lang}.json"
+        client = _get_llm_client()
+        err_console.print(
+            f"[cyan]Translating review into {lang} ({lang_label})...[/cyan]"
+        )
+        err_console.print("  [dim]1/2 Translating phases and communication...[/dim]")
+        err_console.print("  [dim]2/2 Translating findings and checklist...[/dim]")
+        translated = translate_review(input_data, lang, client)
+    else:
+        if output is None:
+            output = report_file.parent / f"{report_file.stem}.{lang}.json"
+        client = _get_llm_client()
+        err_console.print(
+            f"[cyan]Translating report into {lang} ({lang_label})...[/cyan]"
+        )
+        err_console.print("  [dim]1/4 Translating summary...[/dim]")
+        err_console.print("  [dim]2/4 Translating activity...[/dim]")
+        err_console.print("  [dim]3/4 Translating roles...[/dim]")
+        err_console.print("  [dim]4/4 Translating tactics...[/dim]")
+        translated = translate_report(input_data, lang, client)
 
-    err_console.print(
-        f"[cyan]Translating report into {lang} "
-        f"({'known' if lang in SUPPORTED_LANGS else 'custom'} language)...[/cyan]"
-    )
-    err_console.print("  [dim]1/4 Translating summary...[/dim]")
-    err_console.print("  [dim]2/4 Translating activity...[/dim]")
-    err_console.print("  [dim]3/4 Translating roles...[/dim]")
-    err_console.print("  [dim]4/4 Translating tactics...[/dim]")
-
-    translated = translate_report(report_data, lang, client)
     content = json.dumps(translated, indent=2, ensure_ascii=False)
     _write_output(content, output)
 

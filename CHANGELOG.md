@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-03-20
+
+### Added
+- **`aiir translate` supports review JSON**: `aiir translate report.review.json --lang ja`
+  now auto-detects review files (by the `"phases"` key) and translates all narrative
+  fields — phase notes, communication assessment, role clarity text, tool appropriateness,
+  strengths, improvements, and checklist items. Technical/enum fields (incident_id,
+  channel, overall_score, phase names, quality scores, ic_name, checklist priorities)
+  are preserved as-is. Output is named `<stem>.review.<lang>.json`.
+- **`translate_review()` in `translate/translator.py`**: New public function mirroring
+  `translate_report()`, implemented as two focused LLM calls to keep payloads small.
+- 4 new tests for `translate_review()` covering narrative translation, technical field
+  preservation, lang field injection, and fallback on missing LLM keys.
+
 ## [1.1.0] - 2026-03-20
 
 ### Added

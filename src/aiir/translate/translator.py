@@ -203,11 +203,120 @@ def _translate_tactics(tactics: list[dict[str, Any]], lang: str, client: LLMClie
     return result
 
 
+def _translate_review_phases_comms(
+    review: dict[str, Any], lang: str, client: LLMClient
+) -> dict[str, Any]:
+    """Translate phases notes and communication/role_clarity narrative fields."""
+    phases = review.get("phases", [])
+    communication = review.get("communication", {})
+    role_clarity = review.get("role_clarity", {})
+
+    payload = {
+        "phases": [{"notes": p.get("notes", "")} for p in phases],
+        "communication": {
+            "overall": communication.get("overall", ""),
+            "delays_observed": communication.get("delays_observed", []),
+            "silos_observed": communication.get("silos_observed", []),
+        },
+        "role_clarity": {
+            "gaps": role_clarity.get("gaps", []),
+            "overlaps": role_clarity.get("overlaps", []),
+        },
+    }
+    translated = _translate_chunk(payload, lang, client)
+
+    # Merge phases notes
+    merged_phases = []
+    trans_phases = translated.get("phases", [])
+    for i, orig_p in enumerate(phases):
+        p = dict(orig_p)
+        if i < len(trans_phases):
+            p["notes"] = trans_phases[i].get("notes", orig_p.get("notes", ""))
+        merged_phases.append(p)
+
+    # Merge communication
+    trans_comm = translated.get("communication", {})
+    merged_comm = dict(communication)
+    merged_comm["overall"] = trans_comm.get("overall", communication.get("overall", ""))
+    merged_comm["delays_observed"] = trans_comm.get(
+        "delays_observed", communication.get("delays_observed", [])
+    )
+    merged_comm["silos_observed"] = trans_comm.get(
+        "silos_observed", communication.get("silos_observed", [])
+    )
+
+    # Merge role_clarity text
+    trans_rc = translated.get("role_clarity", {})
+    merged_rc = dict(role_clarity)
+    merged_rc["gaps"] = trans_rc.get("gaps", role_clarity.get("gaps", []))
+    merged_rc["overlaps"] = trans_rc.get("overlaps", role_clarity.get("overlaps", []))
+
+    result = dict(review)
+    result["phases"] = merged_phases
+    result["communication"] = merged_comm
+    result["role_clarity"] = merged_rc
+    return result
+
+
+def _translate_review_findings(
+    review: dict[str, Any], lang: str, client: LLMClient
+) -> dict[str, Any]:
+    """Translate tool_appropriateness, strengths, improvements, and checklist items."""
+    checklist = review.get("checklist", [])
+    payload = {
+        "tool_appropriateness": review.get("tool_appropriateness", ""),
+        "strengths": review.get("strengths", []),
+        "improvements": review.get("improvements", []),
+        "checklist": [{"item": c.get("item", "")} for c in checklist],
+    }
+    translated = _translate_chunk(payload, lang, client)
+
+    trans_checklist = translated.get("checklist", [])
+    merged_checklist = []
+    for i, orig_c in enumerate(checklist):
+        c = dict(orig_c)
+        if i < len(trans_checklist):
+            c["item"] = trans_checklist[i].get("item", orig_c.get("item", ""))
+        merged_checklist.append(c)
+
+    result = dict(review)
+    result["tool_appropriateness"] = translated.get(
+        "tool_appropriateness", review.get("tool_appropriateness", "")
+    )
+    result["strengths"] = translated.get("strengths", review.get("strengths", []))
+    result["improvements"] = translated.get("improvements", review.get("improvements", []))
+    result["checklist"] = merged_checklist
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
 SUPPORTED_LANGS = sorted(_LANG_NAMES.keys())
+
+
+def translate_review(review: dict[str, Any], lang: str, client: LLMClient) -> dict[str, Any]:
+    """Translate all narrative fields of a review dict into the target language.
+
+    Technical fields (incident_id, channel, overall_score, phase names, quality
+    scores, ic_name, and checklist priorities) are preserved as-is.
+    Translation is performed in two LLM calls to keep each call focused.
+
+    Args:
+        review: Review dict as produced by ``aiir review``.
+        lang: BCP-47 language code (e.g. ``"ja"``, ``"zh"``, ``"de"``).
+        client: Configured LLM client.
+
+    Returns:
+        A new dict with narrative fields translated; all other fields unchanged.
+    """
+    result = dict(review)
+    result["lang"] = lang
+
+    result = _translate_review_phases_comms(result, lang, client)
+    result = _translate_review_findings(result, lang, client)
+    return result
 
 
 def translate_report(report: dict[str, Any], lang: str, client: LLMClient) -> dict[str, Any]:

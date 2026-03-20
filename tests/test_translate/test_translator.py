@@ -15,6 +15,7 @@ from aiir.translate.translator import (
     _translate_roles,
     _translate_tactics,
     translate_report,
+    translate_review,
 )
 
 # ---------------------------------------------------------------------------
@@ -269,3 +270,141 @@ def test_translate_report_skips_missing_sections():
     # Only 2 calls (summary + tactics); activity/roles absent
     assert client.complete_json.call_count == 2
     assert "activity" not in result
+
+
+# ---------------------------------------------------------------------------
+# translate_review
+# ---------------------------------------------------------------------------
+
+SAMPLE_REVIEW = {
+    "incident_id": "INC-2026-001",
+    "channel": "#incident-2026",
+    "overall_score": "good",
+    "phases": [
+        {
+            "phase": "detection",
+            "estimated_duration": "5m",
+            "quality": "good",
+            "notes": "Alert fired promptly.",
+        }
+    ],
+    "communication": {
+        "overall": "Communication was clear overall.",
+        "delays_observed": ["30-minute gap between detection and triage"],
+        "silos_observed": [],
+    },
+    "role_clarity": {
+        "ic_identified": True,
+        "ic_name": "alice",
+        "gaps": ["No dedicated comms role"],
+        "overlaps": [],
+    },
+    "tool_appropriateness": "Tools were well-suited to the incident.",
+    "strengths": ["Fast detection", "Clear communication"],
+    "improvements": ["Define IC earlier"],
+    "checklist": [
+        {"item": "Add runbook for OOM events", "priority": "high"}
+    ],
+}
+
+
+def test_translate_review_adds_lang_field():
+    client = MagicMock()
+    client.complete_json.side_effect = [
+        json.dumps({
+            "phases": [{"notes": "アラートが迅速に発火した。"}],
+            "communication": {
+                "overall": "コミュニケーションは全体的に明確だった。",
+                "delays_observed": ["検知からトリアージまでに30分のギャップ"],
+                "silos_observed": [],
+            },
+            "role_clarity": {
+                "gaps": ["専任のコミュニケーション役がいない"],
+                "overlaps": [],
+            },
+        }),
+        json.dumps({
+            "tool_appropriateness": "ツールはインシデントに適していた。",
+            "strengths": ["迅速な検知", "明確なコミュニケーション"],
+            "improvements": ["ICをより早く決定する"],
+            "checklist": [{"item": "OOMイベント用のランブックを追加する"}],
+        }),
+    ]
+    result = translate_review(SAMPLE_REVIEW, "ja", client)
+
+    assert result["lang"] == "ja"
+    assert client.complete_json.call_count == 2
+
+
+def test_translate_review_translates_narrative_fields():
+    client = MagicMock()
+    client.complete_json.side_effect = [
+        json.dumps({
+            "phases": [{"notes": "アラートが迅速に発火した。"}],
+            "communication": {
+                "overall": "コミュニケーションは明確だった。",
+                "delays_observed": ["30分のギャップ"],
+                "silos_observed": [],
+            },
+            "role_clarity": {"gaps": ["専任コミュニケーション役なし"], "overlaps": []},
+        }),
+        json.dumps({
+            "tool_appropriateness": "ツールは適切だった。",
+            "strengths": ["迅速な検知"],
+            "improvements": ["ICを早期に決定"],
+            "checklist": [{"item": "ランブックを追加する"}],
+        }),
+    ]
+    result = translate_review(SAMPLE_REVIEW, "ja", client)
+
+    assert result["phases"][0]["notes"] == "アラートが迅速に発火した。"
+    assert result["communication"]["overall"] == "コミュニケーションは明確だった。"
+    assert result["communication"]["delays_observed"] == ["30分のギャップ"]
+    assert result["role_clarity"]["gaps"] == ["専任コミュニケーション役なし"]
+    assert result["tool_appropriateness"] == "ツールは適切だった。"
+    assert result["strengths"] == ["迅速な検知"]
+    assert result["checklist"][0]["item"] == "ランブックを追加する"
+
+
+def test_translate_review_preserves_technical_fields():
+    client = MagicMock()
+    client.complete_json.side_effect = [
+        json.dumps({
+            "phases": [{"notes": "訳注"}],
+            "communication": {"overall": "X", "delays_observed": [], "silos_observed": []},
+            "role_clarity": {"gaps": [], "overlaps": []},
+        }),
+        json.dumps({
+            "tool_appropriateness": "X",
+            "strengths": [],
+            "improvements": [],
+            "checklist": [{"item": "X"}],
+        }),
+    ]
+    result = translate_review(SAMPLE_REVIEW, "ja", client)
+
+    # Technical/enum fields must not be changed
+    assert result["incident_id"] == "INC-2026-001"
+    assert result["channel"] == "#incident-2026"
+    assert result["overall_score"] == "good"
+    assert result["phases"][0]["phase"] == "detection"
+    assert result["phases"][0]["quality"] == "good"
+    assert result["phases"][0]["estimated_duration"] == "5m"
+    assert result["role_clarity"]["ic_identified"] is True
+    assert result["role_clarity"]["ic_name"] == "alice"
+    assert result["checklist"][0]["priority"] == "high"
+
+
+def test_translate_review_fallback_on_missing_llm_key():
+    """If LLM omits a key, the original value is kept."""
+    client = MagicMock()
+    client.complete_json.side_effect = [
+        json.dumps({"phases": [], "communication": {}, "role_clarity": {}}),
+        json.dumps({}),
+    ]
+    result = translate_review(SAMPLE_REVIEW, "ja", client)
+
+    # Original values preserved when LLM omits them
+    assert result["tool_appropriateness"] == "Tools were well-suited to the incident."
+    assert result["strengths"] == ["Fast detection", "Clear communication"]
+    assert result["checklist"][0]["item"] == "Add runbook for OOM events"
