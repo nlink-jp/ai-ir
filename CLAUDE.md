@@ -14,6 +14,7 @@ investigation tactic knowledge documents.
 - `aiir roles` - Infer participant roles and relationships using LLM
 - `aiir knowledge` - Extract reusable investigation tactics, output as YAML knowledge docs
 - `aiir report` - Generate full analysis report
+- `aiir serve` - Start read-only local web UI (FastAPI, binds to 127.0.0.1 only)
 
 ### Module Structure
 ```
@@ -36,6 +37,11 @@ src/aiir/
     formatter.py   - YAML knowledge document formatter
   report/
     generator.py   - Full report generation (Markdown/JSON)
+  server/
+    app.py         - FastAPI application factory (create_app)
+    routes.py      - Route handlers (dashboard, report, knowledge, tactic, API)
+    loader.py      - File scanning with path traversal prevention
+    templates/     - Jinja2 HTML templates (Tailwind CSS CDN, Japanese UI)
 ```
 
 ## Security Rules

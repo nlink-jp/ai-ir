@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}ナレッジライブラリ{% endblock %}
+{% block content %}
+<div class="mb-6 flex items-center justify-between">
+  <h1 class="text-2xl font-bold">ナレッジライブラリ</h1>
+  <span class="text-sm text-gray-500">{{ tactics|length }} 件</span>
+</div>
+
+<!-- Filters -->
+<div class="bg-white rounded-lg shadow p-4 mb-6 flex flex-wrap gap-4">
+  <div>
+    <label class="text-xs text-gray-500 block mb-1">カテゴリ</label>
+    <select onchange="applyFilter()" id="cat-filter"
+      class="text-sm border rounded px-2 py-1">
+      <option value="">すべて</option>
+      {% for cat in categories %}
+      <option value="{{ cat }}" {% if cat == selected_category %}selected{% endif %}>{{ cat }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="text-xs text-gray-500 block mb-1">タグ</label>
+    <select onchange="applyFilter()" id="tag-filter"
+      class="text-sm border rounded px-2 py-1">
+      <option value="">すべて</option>
+      {% for t in all_tags %}
+      <option value="{{ t }}" {% if t == selected_tag %}selected{% endif %}>{{ t }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% if selected_category or selected_tag %}
+  <div class="flex items-end">
+    <a href="/knowledge" class="text-sm text-blue-600 hover:underline">クリア</a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Tactic Cards -->
+{% if tactics %}
+<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+  {% for t in tactics %}
+  <a href="/tactic?path={{ t['_path']|urlencode }}"
+     class="bg-white rounded-lg shadow hover:shadow-md transition p-5 block">
+    <div class="flex items-start justify-between mb-2">
+      <span class="text-xs font-mono text-gray-400">{{ t.get("id","") }}</span>
+      <span class="ml-2 text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded whitespace-nowrap">
+        {{ t.get("category","") }}
+      </span>
+    </div>
+    <h3 class="font-semibold text-gray-800 leading-tight mb-2">{{ t.get("title","") }}</h3>
+    <p class="text-sm text-gray-600 line-clamp-2">{{ t.get("purpose","") }}</p>
+    {% if t.get("tools") %}
+    <div class="flex flex-wrap gap-1 mt-3">
+      {% for tool in t.get("tools",[])[:4] %}
+      <code class="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{{ tool }}</code>
+      {% endfor %}
+      {% if t.get("tools",[])|length > 4 %}
+      <span class="text-xs text-gray-400">+{{ t.get("tools",[])|length - 4 }}</span>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% if t.get("tags") %}
+    <div class="flex flex-wrap gap-1 mt-2">
+      {% for tag in t.get("tags",[])[:4] %}
+      <span class="text-xs text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">{{ tag }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+    <div class="mt-3 text-xs text-gray-400">{{ t.get("created_at","") }} — {{ t.get("source",{}).get("channel","") }}</div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="bg-white rounded-lg shadow p-8 text-center text-gray-400">
+  <p class="text-4xl mb-3">📚</p>
+  <p>ナレッジドキュメントが見つかりません</p>
+  <p class="text-sm mt-2"><code>aiir knowledge &lt;input.json&gt; --output-dir ./knowledge</code> で生成してください</p>
+</div>
+{% endif %}
+
+<script>
+function applyFilter() {
+  const cat = document.getElementById('cat-filter').value;
+  const tag = document.getElementById('tag-filter').value;
+  const params = new URLSearchParams();
+  if (cat) params.set('category', cat);
+  if (tag) params.set('tag', tag);
+  window.location.search = params.toString();
+}
+</script>
+{% endblock %}

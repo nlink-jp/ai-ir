@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ tactic.get("title","") }}{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <a href="/knowledge" class="text-sm text-blue-600 hover:underline">← ナレッジライブラリ</a>
+  <div class="flex items-center gap-3 mt-3">
+    <span class="font-mono text-sm text-gray-400">{{ tactic.get("id","") }}</span>
+    <span class="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded">{{ tactic.get("category","") }}</span>
+  </div>
+  <h1 class="text-2xl font-bold mt-1">{{ tactic.get("title","") }}</h1>
+</div>
+
+<div class="grid lg:grid-cols-3 gap-6">
+  <div class="lg:col-span-2 space-y-5">
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="font-semibold text-gray-700 mb-2">目的</h2>
+      <p class="text-gray-800">{{ tactic.get("purpose","") }}</p>
+    </div>
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="font-semibold text-gray-700 mb-2">使用ツール・コマンド</h2>
+      <div class="flex flex-wrap gap-2">
+        {% for tool in tactic.get("tools",[]) %}
+        <code class="bg-gray-100 px-3 py-1 rounded text-sm">{{ tool }}</code>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="font-semibold text-gray-700 mb-3">手順</h2>
+      <pre class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed font-mono bg-gray-50 p-4 rounded">{{ tactic.get("procedure","") }}</pre>
+    </div>
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="font-semibold text-gray-700 mb-3">結果の解釈</h2>
+      <pre class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed bg-gray-50 p-4 rounded">{{ tactic.get("observations","") }}</pre>
+    </div>
+  </div>
+
+  <div class="space-y-4">
+    <div class="bg-white rounded-lg shadow p-5">
+      <h2 class="font-semibold text-gray-700 mb-3">タグ</h2>
+      <div class="flex flex-wrap gap-2">
+        {% for tag in tactic.get("tags",[]) %}
+        <a href="/knowledge?tag={{ tag }}"
+           class="text-sm bg-blue-50 text-blue-700 px-2 py-0.5 rounded hover:bg-blue-100">{{ tag }}</a>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="bg-white rounded-lg shadow p-5">
+      <h2 class="font-semibold text-gray-700 mb-3">出典</h2>
+      <p class="text-sm text-gray-600">{{ tactic.get("source",{}).get("channel","") }}</p>
+      {% if tactic.get("source",{}).get("participants") %}
+      <p class="text-xs text-gray-400 mt-1">
+        {{ tactic.get("source",{}).get("participants",[]) | join(", ") }}
+      </p>
+      {% endif %}
+      <p class="text-xs text-gray-400 mt-2">{{ tactic.get("created_at","") }}</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

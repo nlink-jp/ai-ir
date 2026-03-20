@@ -545,3 +545,55 @@ def report(input_file: Path, output: Path | None, fmt: str) -> None:
             title="[bold green]Report Complete[/bold green]",
         )
     )
+
+
+# ---------------------------------------------------------------------------
+# serve command
+# ---------------------------------------------------------------------------
+
+
+@main.command()
+@click.argument("data_dir", type=click.Path(path_type=Path), default=Path("."))
+@click.option("--port", "-p", default=8765, show_default=True, help="Port to listen on (localhost only)")
+@click.option("--no-browser", is_flag=True, help="Do not open browser automatically")
+def serve(data_dir: Path, port: int, no_browser: bool) -> None:
+    """Start local web UI for browsing analysis results.
+
+    Scans DATA_DIR (default: current directory) for report JSON files
+    and knowledge YAML files, then starts a read-only web server on
+    http://localhost:{port}.
+
+    Security: always binds to 127.0.0.1 only.
+    """
+    import uvicorn
+    from aiir.server.app import create_app
+
+    data_dir = data_dir.resolve()
+    if not data_dir.exists():
+        err_console.print(f"[red][ERROR] Directory not found: {data_dir}[/red]")
+        sys.exit(1)
+
+    app = create_app(data_dir)
+    url = f"http://localhost:{port}"
+
+    err_console.print(
+        Panel(
+            f"URL:      {url}\n"
+            f"Data dir: {data_dir}\n\n"
+            f"[dim]Ctrl+C to stop[/dim]",
+            title="[bold green]ai-ir Web UI[/bold green]",
+        )
+    )
+
+    if not no_browser:
+        import threading
+        import webbrowser
+        import time
+
+        def _open() -> None:
+            time.sleep(0.8)
+            webbrowser.open(url)
+
+        threading.Thread(target=_open, daemon=True).start()
+
+    uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")

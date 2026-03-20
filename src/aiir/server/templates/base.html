@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}ai-ir{% endblock %} — ai-ir</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+    .tab-active { border-bottom: 2px solid #3b82f6; color: #2563eb; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+  <!-- Header -->
+  <nav class="bg-gray-900 text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center gap-6">
+      <a href="/" class="text-lg font-bold tracking-tight">🔍 ai-ir</a>
+      <a href="/" class="text-sm hover:text-blue-300">ダッシュボード</a>
+      <a href="/knowledge" class="text-sm hover:text-blue-300">ナレッジライブラリ</a>
+      <span class="ml-auto text-xs text-gray-500">localhost only</span>
+    </div>
+  </nav>
+  <!-- Content -->
+  <main class="max-w-7xl mx-auto px-4 py-8">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

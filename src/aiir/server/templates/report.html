@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% block title %}{{ report.get("summary", {}).get("title", "レポート") }}{% endblock %}
+{% block content %}
+{% set s = report.get("summary", {}) %}
+{% set sev = s.get("severity", "unknown") %}
+{% set sev_colors = {"critical": "red", "high": "orange", "medium": "yellow", "low": "green", "unknown": "gray"} %}
+{% set color = sev_colors.get(sev, "gray") %}
+
+<div class="mb-6 flex items-start gap-4">
+  <div class="flex-1">
+    <a href="/" class="text-sm text-blue-600 hover:underline">← ダッシュボード</a>
+    <h1 class="text-2xl font-bold mt-2">{{ s.get("title", "インシデントレポート") }}</h1>
+    <div class="flex items-center gap-3 mt-2">
+      <span class="px-3 py-1 rounded text-sm font-bold text-{{ color }}-700 bg-{{ color }}-100">
+        {{ sev|upper }}
+      </span>
+      <span class="text-sm text-gray-500">{{ report.get("channel", "") }}</span>
+    </div>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="border-b border-gray-200 mb-6">
+  <nav class="flex gap-6" id="tabs">
+    <button onclick="showTab('summary')" id="tab-summary"
+      class="py-3 text-sm font-medium border-b-2 border-blue-500 text-blue-600">サマリ</button>
+    <button onclick="showTab('activity')" id="tab-activity"
+      class="py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">担当者活動</button>
+    <button onclick="showTab('roles')" id="tab-roles"
+      class="py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">役割・関係性</button>
+    <button onclick="showTab('tactics')" id="tab-tactics"
+      class="py-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">抽出戦術</button>
+  </nav>
+</div>
+
+<!-- Summary Tab -->
+<div id="pane-summary" class="space-y-6">
+  <div class="bg-white rounded-lg shadow p-6">
+    <h2 class="font-semibold text-gray-700 mb-3">概要</h2>
+    <p class="text-gray-800 leading-relaxed">{{ s.get("summary", "—") }}</p>
+  </div>
+  {% if s.get("affected_systems") %}
+  <div class="bg-white rounded-lg shadow p-6">
+    <h2 class="font-semibold text-gray-700 mb-3">影響システム</h2>
+    <ul class="list-disc list-inside space-y-1">
+      {% for sys in s.get("affected_systems", []) %}
+      <li class="text-gray-800">{{ sys }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+  {% if s.get("timeline") %}
+  <div class="bg-white rounded-lg shadow p-6">
+    <h2 class="font-semibold text-gray-700 mb-3">タイムライン</h2>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead><tr class="bg-gray-50">
+          <th class="text-left px-3 py-2 text-gray-500 font-medium">時刻</th>
+          <th class="text-left px-3 py-2 text-gray-500 font-medium">担当者</th>
+          <th class="text-left px-3 py-2 text-gray-500 font-medium">イベント</th>
+        </tr></thead>
+        <tbody>
+          {% for ev in s.get("timeline", []) %}
+          <tr class="border-t border-gray-100 hover:bg-gray-50">
+            <td class="px-3 py-2 text-gray-500 whitespace-nowrap font-mono text-xs">{{ ev.get("timestamp","") }}</td>
+            <td class="px-3 py-2 font-medium">@{{ ev.get("actor","") }}</td>
+            <td class="px-3 py-2 text-gray-700">{{ ev.get("event","") }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="font-semibold text-gray-700 mb-2">根本原因</h2>
+      <p class="text-gray-800">{{ s.get("root_cause","—") }}</p>
+    </div>
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="font-semibold text-gray-700 mb-2">解決策</h2>
+      <p class="text-gray-800">{{ s.get("resolution","—") }}</p>
+    </div>
+  </div>
+</div>
+
+<!-- Activity Tab -->
+<div id="pane-activity" class="hidden space-y-4">
+  {% set participants = report.get("activity", {}).get("participants", []) %}
+  {% if participants %}
+  {% for p in participants %}
+  <div class="bg-white rounded-lg shadow p-6">
+    <div class="flex items-center gap-3 mb-4">
+      <span class="text-xl">👤</span>
+      <div>
+        <h2 class="font-semibold">@{{ p.get("user_name","") }}</h2>
+        <p class="text-sm text-gray-500">{{ p.get("role_hint","") }}</p>
+      </div>
+    </div>
+    {% if p.get("actions") %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead><tr class="bg-gray-50">
+          <th class="text-left px-3 py-2 text-gray-500 font-medium w-32">時刻</th>
+          <th class="text-left px-3 py-2 text-gray-500 font-medium">目的</th>
+          <th class="text-left px-3 py-2 text-gray-500 font-medium">手法</th>
+          <th class="text-left px-3 py-2 text-gray-500 font-medium">発見事項</th>
+        </tr></thead>
+        <tbody>
+          {% for a in p.get("actions", []) %}
+          <tr class="border-t border-gray-100 hover:bg-gray-50">
+            <td class="px-3 py-2 text-gray-400 font-mono text-xs">{{ a.get("timestamp","") }}</td>
+            <td class="px-3 py-2 text-gray-700">{{ a.get("purpose","") }}</td>
+            <td class="px-3 py-2"><code class="text-xs bg-gray-100 px-1 rounded">{{ a.get("method","") }}</code></td>
+            <td class="px-3 py-2 text-gray-600">{{ a.get("findings","") }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% else %}
+  <p class="text-gray-400">担当者活動データがありません</p>
+  {% endif %}
+</div>
+
+<!-- Roles Tab -->
+<div id="pane-roles" class="hidden space-y-6">
+  {% set roles_data = report.get("roles", {}) %}
+  <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for p in roles_data.get("participants", []) %}
+    {% set conf_colors = {"high": "green", "medium": "yellow", "low": "gray"} %}
+    {% set cc = conf_colors.get(p.get("confidence","low"), "gray") %}
+    <div class="bg-white rounded-lg shadow p-5">
+      <div class="flex justify-between items-start mb-2">
+        <h3 class="font-semibold">@{{ p.get("user_name","") }}</h3>
+        <span class="text-xs px-2 py-0.5 rounded bg-{{ cc }}-100 text-{{ cc }}-700">
+          {{ p.get("confidence","").upper() }}
+        </span>
+      </div>
+      <p class="text-sm text-blue-700 font-medium mb-3">{{ p.get("inferred_role","") }}</p>
+      {% if p.get("evidence") %}
+      <ul class="text-xs text-gray-500 space-y-1">
+        {% for ev in p.get("evidence", [])[:3] %}
+        <li class="border-l-2 border-gray-200 pl-2">{{ ev }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% if roles_data.get("relationships") %}
+  <div class="bg-white rounded-lg shadow p-6">
+    <h2 class="font-semibold text-gray-700 mb-4">関係性</h2>
+    <table class="w-full text-sm">
+      <thead><tr class="bg-gray-50">
+        <th class="text-left px-3 py-2 text-gray-500">From</th>
+        <th class="text-left px-3 py-2 text-gray-500">関係</th>
+        <th class="text-left px-3 py-2 text-gray-500">To</th>
+        <th class="text-left px-3 py-2 text-gray-500">説明</th>
+      </tr></thead>
+      <tbody>
+        {% for rel in roles_data.get("relationships", []) %}
+        <tr class="border-t border-gray-100">
+          <td class="px-3 py-2 font-medium">@{{ rel.get("from_user","") }}</td>
+          <td class="px-3 py-2"><span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{{ rel.get("relationship_type","") }}</span></td>
+          <td class="px-3 py-2 font-medium">@{{ rel.get("to_user","") }}</td>
+          <td class="px-3 py-2 text-gray-600">{{ rel.get("description","") }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Tactics Tab -->
+<div id="pane-tactics" class="hidden space-y-4">
+  {% set tactics = report.get("tactics", []) %}
+  {% if tactics %}
+  {% for t in tactics %}
+  <div class="bg-white rounded-lg shadow p-5">
+    <div class="flex items-start justify-between mb-2">
+      <h3 class="font-semibold text-gray-800">{{ t.get("title","") }}</h3>
+      <span class="ml-3 text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded whitespace-nowrap">
+        {{ t.get("category","") }}
+      </span>
+    </div>
+    <p class="text-sm text-gray-600 mb-3"><strong>目的:</strong> {{ t.get("purpose","") }}</p>
+    {% if t.get("tools") %}
+    <div class="flex flex-wrap gap-1 mb-3">
+      {% for tool in t.get("tools",[]) %}
+      <code class="text-xs bg-gray-100 px-2 py-0.5 rounded">{{ tool }}</code>
+      {% endfor %}
+    </div>
+    {% endif %}
+    <details class="text-sm">
+      <summary class="cursor-pointer text-blue-600 hover:underline">手順を見る</summary>
+      <pre class="mt-2 text-xs bg-gray-50 p-3 rounded whitespace-pre-wrap text-gray-700">{{ t.get("procedure","") }}</pre>
+    </details>
+    {% if t.get("tags") %}
+    <div class="flex flex-wrap gap-1 mt-3">
+      {% for tag in t.get("tags",[]) %}
+      <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">{{ tag }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% else %}
+  <p class="text-gray-400">戦術データがありません</p>
+  {% endif %}
+</div>
+
+<script>
+function showTab(name) {
+  const panes = ['summary','activity','roles','tactics'];
+  panes.forEach(p => {
+    document.getElementById('pane-'+p).classList.toggle('hidden', p !== name);
+    const btn = document.getElementById('tab-'+p);
+    if (p === name) {
+      btn.classList.add('border-blue-500','text-blue-600');
+      btn.classList.remove('border-transparent','text-gray-500');
+    } else {
+      btn.classList.remove('border-blue-500','text-blue-600');
+      btn.classList.add('border-transparent','text-gray-500');
+    }
+  });
+}
+</script>
+{% endblock %}

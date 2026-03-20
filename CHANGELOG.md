@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-20
+
+### Added
+- **`aiir serve` command**: local read-only web UI for browsing analysis output files.
+  Starts a FastAPI server bound to `127.0.0.1` only (security: never binds to 0.0.0.0).
+- **Dashboard** (`/`): summary statistics (report count, severity breakdown, tactic count
+  by category) with report cards linking to full report views.
+- **Report view** (`/report?path=...`): tabbed view of Summary, Activity, Roles, and
+  Tactics for a single incident report JSON file.
+- **Knowledge library** (`/knowledge`): filterable grid of tactic YAML documents with
+  category and tag filters.
+- **Tactic detail** (`/tactic?path=...`): full view of a single knowledge tactic including
+  purpose, tools, procedure, observations, tags, and source metadata.
+- **JSON APIs**: `/api/reports` and `/api/knowledge` for programmatic access.
+- `src/aiir/server/` module: `app.py` (FastAPI factory), `routes.py` (route handlers),
+  `loader.py` (file scanning with path traversal prevention), `templates/` (Jinja2 HTML).
+- New dependencies: `fastapi>=0.110`, `uvicorn[standard]>=0.27`, `jinja2>=3.1`,
+  `python-multipart>=0.0.9`, `aiofiles>=23.0`.
+- New dev dependency: `httpx>=0.27` (required for FastAPI `TestClient`).
+- Test suite: `tests/test_server/test_loader.py` and `tests/test_server/test_routes.py`.
+
 ## [0.1.5] - 2026-03-20
 
 ### Security

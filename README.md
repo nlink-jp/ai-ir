@@ -10,6 +10,7 @@ to generate actionable reports and reusable knowledge.
 - **Activity Analysis** — Per-participant breakdown of methods, tools, and findings
 - **Role Inference** — Infer IR roles (Incident Commander, SME, etc.) and relationships
 - **Knowledge Extraction** — Extract reusable investigation tactics as YAML documents
+- **Local Web UI** — Browse analysis output with `aiir serve` (read-only, localhost only)
 - **Security-first** — IoC defanging and prompt injection defense built-in
 
 ## Installation
@@ -102,6 +103,24 @@ uv run aiir roles preprocessed.json -o roles.md
 uv run aiir knowledge preprocessed.json -d ./knowledge/
 uv run aiir report preprocessed.json -o full-report.md
 ```
+
+### Browse results in the web UI
+
+After generating reports and knowledge documents, launch the local web UI:
+
+```bash
+# Serve current directory (scans recursively for report JSON and tactic YAML files)
+uv run aiir serve
+
+# Serve a specific directory on a custom port
+uv run aiir serve ./output --port 9000
+
+# Start without opening a browser tab automatically
+uv run aiir serve --no-browser
+```
+
+The server binds to `127.0.0.1` only and is read-only. Open http://localhost:8765
+in your browser to view the dashboard.
 
 ## Security
 
