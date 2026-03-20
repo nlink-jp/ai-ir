@@ -1,6 +1,7 @@
 """Tests for aiir.parser.loader module."""
 
 import json
+import textwrap
 
 import pytest
 
@@ -85,3 +86,84 @@ def test_load_invalid_post_type_raises():
     }
     with pytest.raises(ValidationError):
         load_export_from_string(json.dumps(data))
+
+
+# ---------------------------------------------------------------------------
+# NDJSON (stail format) tests
+# ---------------------------------------------------------------------------
+
+_NDJSON_LINE1 = {
+    "user_id": "U111",
+    "user_name": "alice",
+    "post_type": "user",
+    "timestamp": "2026-03-19T09:00:00Z",
+    "timestamp_unix": "1742378000.000000",
+    "text": "suspicious login detected",
+    "files": [],
+    "is_reply": False,
+}
+_NDJSON_LINE2 = {
+    "user_id": "U222",
+    "user_name": "bob",
+    "post_type": "user",
+    "timestamp": "2026-03-19T09:05:00Z",
+    "timestamp_unix": "1742378300.000000",
+    "text": "investigating now",
+    "files": [],
+    "is_reply": False,
+}
+
+
+@pytest.fixture()
+def ndjson_file(tmp_path):
+    """Write a 2-message NDJSON file and return the path."""
+    p = tmp_path / "incident_channel.json"
+    p.write_text(
+        json.dumps(_NDJSON_LINE1) + "\n" + json.dumps(_NDJSON_LINE2) + "\n",
+        encoding="utf-8",
+    )
+    return p
+
+
+def test_load_ndjson_message_count(ndjson_file):
+    """NDJSON export loads all message lines."""
+    export = load_export(ndjson_file)
+    assert len(export.messages) == 2
+
+
+def test_load_ndjson_channel_name_from_stem(ndjson_file):
+    """channel_name is derived from the file stem."""
+    export = load_export(ndjson_file)
+    assert export.channel_name == "incident_channel"
+
+
+def test_load_ndjson_export_timestamp_is_latest(ndjson_file):
+    """export_timestamp equals the latest message timestamp."""
+    export = load_export(ndjson_file)
+    assert export.export_timestamp == export.messages[-1].timestamp
+
+
+def test_load_ndjson_message_fields(ndjson_file):
+    """Message fields are correctly parsed from NDJSON lines."""
+    export = load_export(ndjson_file)
+    assert export.messages[0].user_name == "alice"
+    assert export.messages[1].text == "investigating now"
+
+
+def test_load_ndjson_blank_lines_ignored(tmp_path):
+    """Blank lines in NDJSON are silently ignored."""
+    p = tmp_path / "ch.json"
+    p.write_text(
+        "\n" + json.dumps(_NDJSON_LINE1) + "\n\n" + json.dumps(_NDJSON_LINE2) + "\n",
+        encoding="utf-8",
+    )
+    export = load_export(p)
+    assert len(export.messages) == 2
+
+
+def test_load_ndjson_empty_file_raises(tmp_path):
+    """Empty NDJSON file raises ValueError."""
+    p = tmp_path / "empty.json"
+    p.write_text("", encoding="utf-8")
+    with pytest.raises(ValueError, match="No messages found"):
+        load_export(p)
