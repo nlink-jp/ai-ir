@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-03-20
+
+### Fixed
+- **Path traversal hardening** (`server/loader.py`): Replaced `str.startswith()` with
+  `Path.is_relative_to()` for path traversal prevention in `load_report`, `load_tactic`,
+  and `_load_review_candidate`. The previous check could be bypassed by a sibling
+  directory whose name begins with the data directory name
+  (e.g. `/app/data_secret` passing a `/app/data` prefix check). Two new tests cover
+  this specific bypass scenario.
+
+### Changed
+- **`models.py`**: `timestamp` and `export_timestamp` fields on `SlackMessage`,
+  `SlackExport`, `ProcessedMessage`, and `ProcessedExport` changed from `datetime` to
+  `AwareDatetime`. This enforces timezone-awareness at validation time and prevents
+  silent UTC assumption bugs. scat/stail exports already produce `Z`-suffixed ISO
+  timestamps, so no migration is required.
+
+### Performance
+- **Parallel translation** (`translate/translator.py`): `translate_report` now
+  dispatches all four section LLM calls (summary, activity, roles, tactics) concurrently
+  via `ThreadPoolExecutor(max_workers=4)`. `translate_review` similarly runs its two
+  calls in parallel. Expected wall-clock reduction: 3–4× for `translate_report`.
+
 ## [1.3.1] - 2026-03-20
 
 ### Fixed

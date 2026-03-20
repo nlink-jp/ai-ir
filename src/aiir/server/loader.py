@@ -78,7 +78,7 @@ def load_report(data_dir: Path, rel_path: str) -> dict | None:
     """Load a single report by its relative path. Prevents path traversal."""
     try:
         target = (data_dir / rel_path).resolve()
-        if not str(target).startswith(str(data_dir.resolve())):
+        if not target.is_relative_to(data_dir.resolve()):
             return None  # path traversal attempt
         data = json.loads(target.read_text(encoding="utf-8"))
         if "summary" in data and "tactics" in data:
@@ -118,7 +118,7 @@ def load_report_by_id(data_dir: Path, incident_id: str, lang: str = "en") -> dic
 def _load_review_candidate(data_dir: Path, review_rel: str) -> dict | None:
     """Load and validate a single review JSON candidate path."""
     target = (data_dir / review_rel).resolve()
-    if not str(target).startswith(str(data_dir.resolve())):
+    if not target.is_relative_to(data_dir.resolve()):
         return None
     if not target.exists():
         return None
@@ -166,7 +166,7 @@ def load_tactic(data_dir: Path, rel_path: str) -> dict | None:
     """Load a single tactic YAML by its relative path. Prevents path traversal."""
     try:
         target = (data_dir / rel_path).resolve()
-        if not str(target).startswith(str(data_dir.resolve())):
+        if not target.is_relative_to(data_dir.resolve()):
             return None
         data = yaml.safe_load(target.read_text(encoding="utf-8"))
         if isinstance(data, dict) and str(data.get("id", "")).startswith("tac-"):

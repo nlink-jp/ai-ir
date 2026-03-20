@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Literal, Optional
 
-from pydantic import BaseModel, field_validator
+from pydantic import AwareDatetime, BaseModel, field_validator
 
 
 # ---------------------------------------------------------------------------
@@ -19,7 +18,7 @@ class SlackMessage(BaseModel):
     user_id: str
     user_name: str
     post_type: Literal["user", "bot"]
-    timestamp: datetime
+    timestamp: AwareDatetime
     timestamp_unix: str
     text: str
     files: list = []
@@ -30,7 +29,7 @@ class SlackMessage(BaseModel):
 class SlackExport(BaseModel):
     """Top-level scat/stail JSON export document."""
 
-    export_timestamp: datetime
+    export_timestamp: AwareDatetime
     channel_name: str
     messages: list[SlackMessage]
 
@@ -54,7 +53,7 @@ class ProcessedMessage(BaseModel):
     user_id: str
     user_name: str
     post_type: str
-    timestamp: datetime
+    timestamp: AwareDatetime
     timestamp_unix: str
     text: str  # defanged and sanitized text, wrapped in nonce-tagged block
     files: list = []
@@ -68,7 +67,7 @@ class ProcessedMessage(BaseModel):
 class ProcessedExport(BaseModel):
     """A processed export document with security metadata."""
 
-    export_timestamp: datetime
+    export_timestamp: AwareDatetime
     channel_name: str
     messages: list[ProcessedMessage]
     security_warnings: list[str] = []

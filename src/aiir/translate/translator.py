@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from aiir.llm.client import LLMClient
@@ -303,7 +304,7 @@ def translate_review(review: dict[str, Any], lang: str, client: LLMClient) -> di
 
     Technical fields (incident_id, channel, overall_score, phase names, quality
     scores, ic_name, and checklist priorities) are preserved as-is.
-    Translation is performed in two LLM calls to keep each call focused.
+    The two LLM calls are executed in parallel to reduce wall-clock time.
 
     Args:
         review: Review dict as produced by ``aiir review``.
@@ -313,11 +314,24 @@ def translate_review(review: dict[str, Any], lang: str, client: LLMClient) -> di
     Returns:
         A new dict with narrative fields translated; all other fields unchanged.
     """
-    result = dict(review)
-    result["lang"] = lang
+    base = dict(review)
+    base["lang"] = lang
 
-    result = _translate_review_phases_comms(result, lang, client)
-    result = _translate_review_findings(result, lang, client)
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        f_phases_comms = executor.submit(_translate_review_phases_comms, base, lang, client)
+        f_findings = executor.submit(_translate_review_findings, base, lang, client)
+        phases_comms_result = f_phases_comms.result()
+        findings_result = f_findings.result()
+
+    # Merge both partial results into base
+    result = dict(base)
+    result["phases"] = phases_comms_result["phases"]
+    result["communication"] = phases_comms_result["communication"]
+    result["role_clarity"] = phases_comms_result["role_clarity"]
+    result["tool_appropriateness"] = findings_result["tool_appropriateness"]
+    result["strengths"] = findings_result["strengths"]
+    result["improvements"] = findings_result["improvements"]
+    result["checklist"] = findings_result["checklist"]
     return result
 
 
@@ -325,7 +339,7 @@ def translate_report(report: dict[str, Any], lang: str, client: LLMClient) -> di
     """Translate all narrative fields of a report dict into the target language.
 
     Technical fields (tool names, commands, IDs, tags, IOCs) are preserved as-is.
-    Translation is performed section by section to keep each LLM call focused.
+    The four section LLM calls are executed in parallel to reduce wall-clock time.
 
     Args:
         report: Report dict as produced by ``aiir report``.
@@ -337,19 +351,28 @@ def translate_report(report: dict[str, Any], lang: str, client: LLMClient) -> di
     """
     result = dict(report)
     result["lang"] = lang
-    # Remove the old marker key if present from a previous run
     result.pop("_translated_lang", None)
 
-    if "summary" in report and report["summary"]:
-        result["summary"] = _translate_summary(report["summary"], lang, client)
+    futures: dict[str, Any] = {}
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        if "summary" in report and report["summary"]:
+            futures["summary"] = executor.submit(
+                _translate_summary, report["summary"], lang, client
+            )
+        if "activity" in report and report["activity"]:
+            futures["activity"] = executor.submit(
+                _translate_activity, report["activity"], lang, client
+            )
+        if "roles" in report and report["roles"]:
+            futures["roles"] = executor.submit(
+                _translate_roles, report["roles"], lang, client
+            )
+        if "tactics" in report and report["tactics"]:
+            futures["tactics"] = executor.submit(
+                _translate_tactics, report["tactics"], lang, client
+            )
 
-    if "activity" in report and report["activity"]:
-        result["activity"] = _translate_activity(report["activity"], lang, client)
-
-    if "roles" in report and report["roles"]:
-        result["roles"] = _translate_roles(report["roles"], lang, client)
-
-    if "tactics" in report and report["tactics"]:
-        result["tactics"] = _translate_tactics(report["tactics"], lang, client)
+    for key, future in futures.items():
+        result[key] = future.result()
 
     return result

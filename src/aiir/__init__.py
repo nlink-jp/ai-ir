@@ -1,3 +1,3 @@
 """ai-ir: AI-powered Incident Response analysis toolset."""
 
-__version__ = "1.3.1"
+__version__ = "1.4.0"

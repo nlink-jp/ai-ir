@@ -63,6 +63,22 @@ def test_load_report_path_traversal(data_dir, tmp_path):
     result = load_report(data_dir, "../../etc/passwd")
     assert result is None
 
+
+def test_load_report_path_traversal_prefix_bypass(tmp_path):
+    """Sibling directory whose name starts with the data dir name must be rejected.
+
+    e.g. data_dir=/tmp/xyz/data, target=/tmp/xyz/data_secret/keys.json
+    startswith('/tmp/xyz/data') would be True — is_relative_to() correctly rejects it.
+    """
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    sibling = tmp_path / "data_secret"
+    sibling.mkdir()
+    secret_file = sibling / "keys.json"
+    secret_file.write_text(_json.dumps(SAMPLE_REPORT))
+    result = load_report(data_dir, "../data_secret/keys.json")
+    assert result is None
+
 def test_load_tactic_success(data_dir):
     tactic = load_tactic(data_dir, "knowledge/tac-20260319-001-test.yaml")
     assert tactic is not None
@@ -70,6 +86,18 @@ def test_load_tactic_success(data_dir):
 
 def test_load_tactic_path_traversal(data_dir):
     result = load_tactic(data_dir, "../../etc/shadow")
+    assert result is None
+
+
+def test_load_tactic_path_traversal_prefix_bypass(tmp_path):
+    """Sibling directory whose name starts with the data dir name must be rejected."""
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    sibling = tmp_path / "data_secret"
+    sibling.mkdir()
+    secret_file = sibling / "tac-evil.yaml"
+    secret_file.write_text("id: tac-evil\ntitle: evil")
+    result = load_tactic(data_dir, "../data_secret/tac-evil.yaml")
     assert result is None
 
 def test_scan_reports_adds_metadata(data_dir):
