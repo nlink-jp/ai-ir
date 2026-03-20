@@ -113,7 +113,17 @@ class Action(BaseModel):
     timestamp: str
     purpose: str
     method: str
-    findings: str
+    findings: str = ""
+
+    @field_validator("purpose", "method", "findings", mode="before")
+    @classmethod
+    def coerce_list_to_str(cls, v: object) -> str:
+        """Normalize LLM output: join lists, convert None to empty string."""
+        if v is None:
+            return ""
+        if isinstance(v, list):
+            return "\n".join(str(item) for item in v)
+        return v
 
 
 class ParticipantActivity(BaseModel):
