@@ -15,6 +15,7 @@
 6.4. [ナレッジ抽出（aiir report 経由）](#64-ナレッジ抽出aiir-report-経由)
 6.5. [Web UI（aiir serve）](#65-web-uiaiir-serve)
 6.6. [翻訳（aiir translate）](#66-翻訳aiir-translate)
+6.7. [プロセス評価（aiir review）](#67-プロセス評価aiir-review)
 7. [テスト戦略](#7-テスト戦略)
 8. [LLM 互換性](#8-llm-互換性)
 9. [リリース手順](#9-リリース手順)
@@ -99,6 +100,7 @@ git diff pyproject.toml uv.lock
 | `src/aiir/analyze/activity.py` | 担当者活動分析 |
 | `src/aiir/analyze/roles.py` | 役割・関係性推論 |
 | `src/aiir/knowledge/extractor.py` | 戦術ナレッジ抽出 |
+| `src/aiir/analyze/reviewer.py` | IR 対応プロセス品質評価（nonce 不要 — ユーザーテキストをプロンプトに含まない） |
 
 ### プロンプトを変更するときのチェックリスト
 
@@ -388,6 +390,57 @@ aiir translate report.json --lang zh -o report.zh.json
 | 一部フィールドが翻訳されない | LLM が技術的な文字列を「コード」と判断 | ツール名・コマンドが英語のまま残るのは正常動作 |
 | JSON パースエラー | LLM が不正な JSON を返した | `json-repair` でほぼ自動修正される。解決しない場合は高性能モデルを試す |
 | 入力ファイル拒否 | `summary` または `tactics` キーが存在しない | `aiir report --format json` で生成した JSON を指定する |
+
+---
+
+## 6.7. プロセス評価（`aiir review`）
+
+`aiir review` コマンドは、完成したレポート JSON を入力として、インシデントの技術的内容ではなく
+対応「プロセス」の品質を LLM で評価します。
+
+### 使用方法
+
+```bash
+# プロセス評価 — report.review.json をソースレポートの隣に出力
+aiir review report.json
+
+# Markdown 出力（読み共有用）
+aiir review report.json --format markdown -o review.md
+```
+
+### 評価内容
+
+| 評価軸 | 内容 |
+|---|---|
+| フェーズ所要時間 | 各 IR フェーズ（検知 / 初動 / 封じ込め / 解決）の推定時間と品質評価 |
+| コミュニケーション品質 | 情報共有の遅延・サイロ化の有無 |
+| 役割の明確さ | IC の特定、役割の空白・重複 |
+| ツール選択の適切さ | 使用したツール・手法の妥当性 |
+| 強み | チームが上手くできたこと |
+| 改善提案 | 次回に向けた具体的・実行可能な提案 |
+| 次回インシデント向けチェックリスト | 優先度付き準備事項（high / medium / low） |
+
+### 出力ファイルの規約
+
+デフォルトでは `aiir review report.json` はソースファイルの隣に `report.review.json` を書き出します。
+Web ダッシュボード（`aiir serve`）はこのファイルを自動検出し、レポート詳細ビューに **対応評価** タブを表示します。
+翻訳版レポート（例：`report.ja.json`）も同じ `report.review.json` を参照します。
+
+### 設計上のポイント
+
+- **生メッセージの再送なし**: `reviewer.py` は LLM への入力にレポートの構造化済みセクション
+  （summary / activity / roles / tactics）のみを使用し、生の Slack メッセージテキストを再送しません。
+  トークン消費を抑え、このステップにおけるプロンプトインジェクションリスクをなくします。
+- **nonce 不要**: ユーザー由来テキストをプロンプトに含まないため、nonce タグによるラッピングが不要です。
+- **英語出力の強制**: 他の分析モジュールと同様に `IMPORTANT: Always respond in English…` 指示を含みます。
+
+### トラブルシューティング
+
+| 症状 | 原因 | 対処 |
+|---|---|---|
+| 対応評価タブが表示されない | `report.review.json` が見つからない | `aiir review report.json` を先に実行する |
+| 出力が短い・汎用的 | レポートの活動・役割データが少ない | `aiir report` の全パイプラインを先に実行してからレビューする |
+| JSON パースエラー | LLM が不正な JSON を返した | リトライするか、より高性能なモデルに切り替える |
 
 ---
 

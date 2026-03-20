@@ -15,6 +15,7 @@ This document describes procedures for maintaining and improving the ai-ir tools
 6.4. [Knowledge Extraction via `aiir report`](#64-knowledge-extraction-via-aiir-report)
 6.5. [Web UI (`aiir serve`)](#65-web-ui-aiir-serve)
 6.6. [Translation (`aiir translate`)](#66-translation-aiir-translate)
+6.7. [Process Review (`aiir review`)](#67-process-review-aiir-review)
 7. [Test Strategy](#7-test-strategy)
 8. [LLM Compatibility](#8-llm-compatibility)
 9. [Release Procedure](#9-release-procedure)
@@ -99,6 +100,7 @@ analysis module (not as static constants — the nonce must be embedded at call 
 | `src/aiir/analyze/activity.py` | Participant activity analysis |
 | `src/aiir/analyze/roles.py` | Role and relationship inference |
 | `src/aiir/knowledge/extractor.py` | Tactic knowledge extraction |
+| `src/aiir/analyze/reviewer.py` | IR process quality review (no nonce required — no user text in prompt) |
 
 ### Checklist for Changing Prompts
 
@@ -399,6 +401,61 @@ name for unlisted languages.
 | Some fields not translated | LLM treats technical-looking text as code | Acceptable — tool names and commands should remain in English |
 | JSON parse error | LLM returned malformed JSON | `json-repair` handles most cases; retry or use a more capable model |
 | Input file rejected | File missing `summary` or `tactics` keys | Run `aiir report --format json` first to generate a valid report |
+
+---
+
+## 6.7. Process Review (`aiir review`)
+
+The `aiir review` command analyzes a completed report JSON and evaluates the quality
+of the incident response *process* — not the technical content of the incident itself.
+
+### Usage
+
+```bash
+# Analyze process quality — outputs report.review.json alongside the source report
+aiir review report.json
+
+# Markdown output (for reading or sharing)
+aiir review report.json --format markdown -o review.md
+```
+
+### What It Evaluates
+
+| Dimension | Description |
+|---|---|
+| Phase timing | Estimated duration and quality rating for each IR phase (detection / initial response / containment / resolution) |
+| Communication quality | Information-sharing delays and silos observed |
+| Role clarity | IC identification, role gaps and overlaps |
+| Tool appropriateness | Whether the right tools and methods were used |
+| Strengths | Concrete things the team did well |
+| Improvements | Specific, actionable suggestions for next time |
+| Next-incident checklist | Prioritised preparation items (high / medium / low) |
+
+### Output File Convention
+
+By default, `aiir review report.json` writes `report.review.json` alongside the source
+file. The web dashboard (`aiir serve`) automatically detects this file and shows a
+**対応評価** tab in the report detail view. Translated report variants (e.g.
+`report.ja.json`) also resolve to the same `report.review.json`.
+
+### Design Notes
+
+- **No raw message re-transmission**: `reviewer.py` uses only the already-structured
+  sections of the report (summary / activity / roles / tactics) as LLM input. Raw
+  Slack message text is never re-sent. This reduces token consumption and eliminates
+  prompt injection risk for this step.
+- **No nonce required**: Because user-sourced text is not included in the prompt,
+  nonce-tagged XML safety wrapping is not needed.
+- **English output enforced**: The system prompt includes the same
+  `IMPORTANT: Always respond in English…` instruction as the other analysis modules.
+
+### Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| 対応評価 tab not shown | `report.review.json` not found | Run `aiir review report.json` first |
+| Very short/generic output | Report has little activity or role data | Run full `aiir report` pipeline before reviewing |
+| JSON parse error | LLM returned malformed JSON | Retry or switch to a more capable model |
 
 ---
 

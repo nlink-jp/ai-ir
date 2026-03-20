@@ -10,6 +10,7 @@ to generate actionable reports and reusable knowledge.
 - **Activity Analysis** — Per-participant breakdown of methods, tools, and findings
 - **Role Inference** — Infer IR roles (Incident Commander, SME, etc.) and relationships
 - **Knowledge Extraction** — Extract reusable investigation tactics as YAML documents
+- **Process Review** — Evaluate IR process quality (phase timing, communication, role clarity, improvement checklist)
 - **Translation** — Translate report JSON into another language while preserving technical content
 - **Local Web UI** — Browse analysis output with `aiir serve` (read-only, localhost only)
 - **Security-first** — IoC defanging and prompt injection defense built-in
@@ -122,6 +123,21 @@ uv run aiir translate report.json --lang ja
 # Any BCP-47 code is accepted for languages not in the built-in list
 uv run aiir translate report.json --lang zh -o report.zh.json
 ```
+
+### Step 4: Review the response process (optional)
+
+After generating the report, analyze the quality of *how the team responded* — phase
+timing, communication quality, role clarity, and concrete improvement suggestions:
+
+```bash
+# Saves report.review.json alongside report.json
+uv run aiir review report.json
+
+# Markdown output for sharing
+uv run aiir review report.json --format markdown -o review.md
+```
+
+The web UI automatically shows a **対応評価** tab when `report.review.json` is present.
 
 ### Browse results in the web UI
 

@@ -71,6 +71,7 @@ Defines all Pydantic data models:
 - **Input models**: `SlackMessage`, `SlackExport`
 - **Preprocessed models**: `IoC`, `ProcessedMessage`, `ProcessedExport`
 - **Analysis models**: `IncidentSummary`, `ActivityAnalysis`, `RoleAnalysis`
+- **Process review models**: `IncidentReview`, `ResponsePhase`, `CommunicationAssessment`, `RoleClarity`, `ChecklistItem`
 - **Knowledge models**: `Tactic`, `TacticSource`
 
 ### `aiir.parser`
@@ -86,10 +87,11 @@ Thin wrapper around the OpenAI Python SDK. Supports:
 - Configurable base URL for any OpenAI-compatible endpoint
 
 ### `aiir.analyze`
-Three analyzers, each with a focused system prompt and structured JSON output:
+Four analyzers, each with a focused system prompt and structured JSON output:
 - **summarizer**: Timeline, severity, root cause, resolution
 - **activity**: Per-user actions with purpose, method, findings
 - **roles**: Inferred IR roles with confidence levels and evidence
+- **reviewer**: Process quality review — evaluates phase timing, communication, role clarity, and produces improvement suggestions. Operates on the structured report data only; raw Slack message text is never re-sent to the LLM.
 
 ### `aiir.knowledge`
 - **extractor**: Prompts LLM to identify reusable investigation tactics
@@ -110,12 +112,13 @@ Provides a read-only local web UI for browsing analysis outputs:
   - `GET /api/knowledge` — JSON list of all discovered tactics
 - **loader**: Secure file discovery — recursively scans a data directory for report JSON
   files (identified by `"summary"` + `"tactics"` keys) and tactic YAML files (identified
-  by `id` starting with `"tac-"`). Path traversal is prevented by resolving all paths and
-  confirming they remain within the data directory.
+  by `id` starting with `"tac-"`). `load_review()` loads a `<stem>.review.json` alongside
+  a report (with language-suffix stripping). Path traversal is prevented by resolving all
+  paths and confirming they remain within the data directory.
 - **templates**: Jinja2 HTML templates with Tailwind CSS CDN styling (Japanese UI)
 
 ### `aiir.cli`
-Click-based CLI with seven subcommands. Each analysis command auto-detects whether
+Click-based CLI with eight subcommands. Each analysis command auto-detects whether
 the input is a raw export or preprocessed file (by checking for the `security_warnings`
 field) and runs ingestion if needed.
 
