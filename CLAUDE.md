@@ -68,6 +68,20 @@ src/aiir/
 - Python with uv virtual environment (`uv sync` to install dependencies)
 - Run tests: `uv run pytest tests/ -v`
 
+## Release Procedure
+
+Follow these steps in order when cutting a release:
+
+1. **Run tests** — confirm all pass: `uv run pytest tests/ -v`
+2. **Bump version** — update `pyproject.toml` (`version = "X.Y.Z"`) and `src/aiir/__init__.py` (`__version__ = "X.Y.Z"`)
+3. **Update CHANGELOG.md** — add a `## [X.Y.Z] - YYYY-MM-DD` section with concise English bullet points under `Added`, `Changed`, or `Fixed` as appropriate
+4. **Commit** — `git commit` with a message like `chore: release vX.Y.Z`
+5. **Tag** — `git tag vX.Y.Z`
+6. **Push** — `git push origin main --tags`
+7. **GitHub release** — `gh release create vX.Y.Z --title "vX.Y.Z" --notes "..."` with **English** release notes
+
+> Release notes must always be written in **English** (the project is public and globally accessible).
+
 ## LLM Configuration
 
 Configure via environment variables (or `.env` file):
