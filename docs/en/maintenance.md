@@ -12,9 +12,11 @@ This document describes procedures for maintaining and improving the ai-ir tools
 4. [Adding and Changing Knowledge Categories](#4-adding-and-changing-knowledge-categories)
 5. [Security Maintenance](#5-security-maintenance)
 6. [Adding New Features](#6-adding-new-features)
+6.5. [Web UI (`aiir serve`)](#65-web-ui-aiir-serve)
 7. [Test Strategy](#7-test-strategy)
-8. [Release Procedure](#8-release-procedure)
-9. [Troubleshooting](#9-troubleshooting)
+8. [LLM Compatibility](#8-llm-compatibility)
+9. [Release Procedure](#9-release-procedure)
+10. [Troubleshooting](#10-troubleshooting)
 
 ---
 
@@ -311,6 +313,7 @@ The server recursively scans the data directory for:
 
 ## 7. Test Strategy
 
+
 ### Test Types and Responsibilities
 
 | Test Type | Location | What it tests |
@@ -343,7 +346,51 @@ Correctness of the analysis logic is ensured by prompt content tests and manual 
 
 ---
 
-## 8. Release Procedure
+## 8. LLM Compatibility
+
+### Response Normalization Pipeline
+
+`llm/client.py` normalizes LLM output before returning it to callers:
+
+```
+raw response
+  │
+  ├─ _strip_reasoning_blocks()   remove <think>, <thinking>, <reasoning>,
+  │                               <reflection>, <scratchpad>, <analysis>,
+  │                               [THINK]...[/THINK], extract <answer>...</answer>
+  │
+  └─ repair_json()               strip markdown code fences, repair minor JSON
+```
+
+This pipeline runs automatically in `complete_json()` for all models.
+
+### Supported Response Format Modes
+
+| Mode | Trigger | Notes |
+|---|---|---|
+| `json_object` | Default (OpenAI, most APIs) | Guarantees valid JSON output |
+| `text` fallback | `BadRequestError` on first attempt | Used by LM Studio, some local LLMs |
+
+### Adding Support for a New Reasoning Tag
+
+If a new model emits a reasoning block in an unseen tag format:
+
+1. Add the tag name to `_REASONING_TAGS` in `src/aiir/llm/client.py`
+2. Add a parametrized test case in `tests/test_llm/test_client.py`
+
+For square-bracket formats (like Mistral `[THINK]`), add a new regex constant
+and call `.sub()` inside `_strip_reasoning_blocks()`.
+
+### Supported Input Formats
+
+| Format | Detection | Source |
+|---|---|---|
+| Single JSON object | `json.loads()` succeeds | scat export |
+| NDJSON (one object per line) | `json.loads()` raises "Extra data" | stail export |
+
+---
+
+## 9. Release Procedure
 
 ### Version Numbering Policy
 
@@ -398,7 +445,7 @@ git tag vx.y.z
 
 ---
 
-## 9. Troubleshooting
+## 10. Troubleshooting
 
 ### `AIIR_LLM_API_KEY is not configured` Error
 

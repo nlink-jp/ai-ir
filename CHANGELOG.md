@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-20
+
+### Added
+- **stail NDJSON format support**: `aiir ingest` now auto-detects newline-delimited
+  JSON (one message object per line), the native export format of stail. `channel_name`
+  is derived from the file stem; `export_timestamp` from the latest message timestamp.
+- **Bot messages included in analysis**: All four analysis modules (summarizer, activity,
+  roles, extractor) now include bot-posted messages in the conversation text sent to the
+  LLM. Bot posts are prefixed with `[bot]` so the model can distinguish post types.
+  This captures automated tool output (EDR alerts, firewall actions, VirusTotal results,
+  escalation bots) that was previously invisible to the LLM.
+- **LLM response normalization pipeline** (`llm/client.py`):
+  - `json_object` mode fallback: catches `BadRequestError` and retries in `text` mode
+    for endpoints that only accept `json_schema` or `text` (e.g. LM Studio, many local LLMs).
+  - `json-repair` integration: strips markdown code fences (` ```json ` blocks) and
+    repairs minor JSON issues that text-mode LLMs sometimes produce.
+  - `_strip_reasoning_blocks()`: removes reasoning/thinking blocks before JSON parsing.
+    Supports `<think>`, `<thinking>`, `<reasoning>`, `<reflection>`, `<scratchpad>`,
+    `<analysis>` (closed and unclosed), Mistral's `[THINK]...[/THINK]`, and
+    DeepSeek-R1/Hunyuan's `<answer>...</answer>` (content extracted, not discarded).
+    Handles case-insensitive matching and truncated (unclosed) blocks.
+- New dependency: `json-repair>=0.58.6`.
+
+### Fixed
+- **Model validation robustness**: LLM output variability no longer causes crashes:
+  - `Relationship.to_user` is now `Optional[str]` (single-participant incidents may
+    return `null` for relationship targets).
+  - `Tactic.procedure` and `Tactic.observations` accept list input and join to string.
+  - `Action.findings` is now optional (default `""`) and accepts `null` or list input.
+- **`.gitignore` scope**: `knowledge/` and `report.*` patterns are now anchored to the
+  repository root (`/knowledge/`, `/report.md`, `/report.json`) so they no longer
+  shadow `src/aiir/knowledge/` — `formatter.py` and `__init__.py` were previously
+  untracked due to this bug.
+- **`pyproject.toml`**: removed deprecated `[tool.uv] dev-dependencies` block
+  (superseded by `[dependency-groups]`); eliminates uv deprecation warning.
+- **Keychain test isolation**: `test_config_uses_keychain_when_env_not_set` now patches
+  `get_config()` so a local `.env` file does not interfere with the keychain fallback test.
+
 ## [0.2.0] - 2026-03-20
 
 ### Added
