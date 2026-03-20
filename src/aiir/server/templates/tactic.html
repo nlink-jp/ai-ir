@@ -26,11 +26,11 @@
     </div>
     <div class="bg-white rounded-lg shadow p-6">
       <h2 class="font-semibold text-gray-700 mb-3">手順</h2>
-      <pre class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed font-mono bg-gray-50 p-4 rounded">{{ tactic.get("procedure","") }}</pre>
+      <pre class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed font-mono bg-gray-50 p-4 rounded">{{ tactic.get("procedure","") | format_steps }}</pre>
     </div>
     <div class="bg-white rounded-lg shadow p-6">
       <h2 class="font-semibold text-gray-700 mb-3">結果の解釈</h2>
-      <pre class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed bg-gray-50 p-4 rounded">{{ tactic.get("observations","") }}</pre>
+      <pre class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed bg-gray-50 p-4 rounded">{{ tactic.get("observations","") | format_steps }}</pre>
     </div>
   </div>
 

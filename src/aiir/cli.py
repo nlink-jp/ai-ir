@@ -548,6 +548,79 @@ def report(input_file: Path, output: Path | None, fmt: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# translate command
+# ---------------------------------------------------------------------------
+
+
+@main.command()
+@click.argument("report_file", type=click.Path(exists=True, path_type=Path))
+@click.option(
+    "--lang",
+    "-l",
+    required=True,
+    help="Target language code (e.g. ja, zh, de, fr, es, ko).",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Output file (default: <stem>.<lang>.json next to input).",
+)
+def translate(report_file: Path, lang: str, output: Path | None) -> None:
+    """Translate a report JSON into another language.
+
+    Translates narrative fields (title, summary, procedure, etc.) while
+    preserving technical content: tool names, commands, IOCs, IDs, tags.
+
+    The source report JSON (English) is not modified. A new file is saved
+    alongside it with the language code in the filename, e.g. report.ja.json.
+
+    Example:
+
+        aiir translate report.json --lang ja
+    """
+    from aiir.translate.translator import SUPPORTED_LANGS, translate_report
+
+    with open(report_file, encoding="utf-8") as f:
+        report_data = json.load(f)
+
+    if "summary" not in report_data or "tactics" not in report_data:
+        err_console.print(
+            "[red][ERROR] Input does not look like an aiir report JSON "
+            "(missing 'summary' or 'tactics' keys).[/red]"
+        )
+        sys.exit(1)
+
+    if output is None:
+        output = report_file.parent / f"{report_file.stem}.{lang}.json"
+
+    client = _get_llm_client()
+
+    err_console.print(
+        f"[cyan]Translating report into {lang} "
+        f"({'known' if lang in SUPPORTED_LANGS else 'custom'} language)...[/cyan]"
+    )
+    err_console.print("  [dim]1/4 Translating summary...[/dim]")
+    err_console.print("  [dim]2/4 Translating activity...[/dim]")
+    err_console.print("  [dim]3/4 Translating roles...[/dim]")
+    err_console.print("  [dim]4/4 Translating tactics...[/dim]")
+
+    translated = translate_report(report_data, lang, client)
+    content = json.dumps(translated, indent=2, ensure_ascii=False)
+    _write_output(content, output)
+
+    err_console.print(
+        Panel(
+            f"Language:    {lang}\n"
+            f"Source:      {report_file}\n"
+            f"Output:      {output}",
+            title="[bold green]Translation Complete[/bold green]",
+        )
+    )
+
+
+# ---------------------------------------------------------------------------
 # serve command
 # ---------------------------------------------------------------------------
 

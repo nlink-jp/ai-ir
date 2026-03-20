@@ -4,7 +4,7 @@ import yaml
 import pytest
 from pathlib import Path
 from fastapi.testclient import TestClient
-from aiir.server.app import create_app
+from aiir.server.app import create_app, _format_steps, _strip_at
 
 SAMPLE_REPORT = {
     "channel": "#test",
@@ -96,3 +96,62 @@ def test_api_knowledge_json(client):
 def test_path_traversal_rejected(client):
     resp = client.get("/report?path=../../etc/passwd")
     assert resp.status_code == 404
+
+
+# --- _format_steps filter tests ---
+
+@pytest.mark.parametrize("text,expected", [
+    ("", ""),
+    ("1. Only one step.", "1. Only one step."),
+    (
+        "1. First step. 2. Second step. 3. Third step.",
+        "1. First step.\n2. Second step.\n3. Third step.",
+    ),
+    (
+        "1. Step one. 2. Step two.",
+        "1. Step one.\n2. Step two.",
+    ),
+    (
+        "Already\nhas\nnewlines",
+        "Already\nhas\nnewlines",
+    ),
+])
+def test_format_steps(text, expected):
+    assert _format_steps(text) == expected
+
+
+# --- _strip_at filter tests ---
+
+@pytest.mark.parametrize("name,expected", [
+    ("alice", "alice"),        # no @ → unchanged
+    ("@wave", "wave"),         # LLM-added @ → stripped
+    ("@@double", "double"),    # edge case: multiple @ → all stripped
+    ("", ""),                  # empty string
+])
+def test_strip_at(name, expected):
+    assert _strip_at(name) == expected
+
+
+def test_report_view_no_double_at_for_bot(tmp_path):
+    """Bot usernames starting with '@' must not render as '@@' in the report view."""
+    report = dict(SAMPLE_REPORT)
+    report["activity"] = {
+        "incident_id": "#test",
+        "channel": "#test",
+        "participants": [
+            {
+                "user_name": "@bot-account",   # LLM returned '@'-prefixed name
+                "role_hint": "Bot",
+                "actions": [],
+            }
+        ],
+    }
+    path = tmp_path / "report.json"
+    path.write_text(__import__("json").dumps(report))
+    app = create_app(tmp_path)
+    from fastapi.testclient import TestClient
+    c = TestClient(app)
+    resp = c.get(f"/report?path={path}")
+    assert resp.status_code == 200
+    assert "@@bot-account" not in resp.text
+    assert "@bot-account" in resp.text

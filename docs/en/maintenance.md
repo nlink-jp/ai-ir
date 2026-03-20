@@ -13,6 +13,7 @@ This document describes procedures for maintaining and improving the ai-ir tools
 5. [Security Maintenance](#5-security-maintenance)
 6. [Adding New Features](#6-adding-new-features)
 6.5. [Web UI (`aiir serve`)](#65-web-ui-aiir-serve)
+6.6. [Translation (`aiir translate`)](#66-translation-aiir-translate)
 7. [Test Strategy](#7-test-strategy)
 8. [LLM Compatibility](#8-llm-compatibility)
 9. [Release Procedure](#9-release-procedure)
@@ -308,6 +309,74 @@ The server recursively scans the data directory for:
 | No reports shown | Reports not in expected JSON format | Run `aiir report` first; check file has `summary`+`tactics` keys |
 | No tactics shown | YAML id field missing `tac-` prefix | Check formatter output; re-run `aiir knowledge` |
 | Port already in use | Another process on port 8765 | Use `--port <other>` |
+
+---
+
+## 6.6. Translation (`aiir translate`)
+
+The `aiir translate` command takes a report JSON (produced by `aiir report --format json`)
+and produces a localized copy with narrative fields translated into the target language.
+Technical content is preserved in English.
+
+### Usage
+
+```bash
+# Translate to Japanese — output defaults to report.ja.json
+aiir translate report.json --lang ja
+
+# Explicit output path
+aiir translate report.json --lang zh -o report.zh.json
+```
+
+### Translated vs. Preserved Fields
+
+| Field | Translated |
+|---|---|
+| `summary.title`, `root_cause`, `resolution`, `summary` | Yes |
+| `summary.timeline[].event` | Yes |
+| `activity.participants[].role_hint` | Yes |
+| `activity.participants[].actions[].purpose`, `findings` | Yes |
+| `roles.participants[].inferred_role`, `evidence` | Yes |
+| `roles.relationships[].description` | Yes |
+| `tactics[].title`, `purpose`, `procedure`, `observations` | Yes |
+| `activity.actions[].method` (commands) | **No** |
+| `tactics[].tools`, `tags`, `category`, `id` | **No** |
+| Backtick-wrapped code in any field | **No** |
+| IOCs, usernames, channel names, timestamps | **No** |
+
+### Design Notes
+
+- **Analysis is always in English**: All analysis system prompts include
+  `IMPORTANT: Always respond in English regardless of the language of the input conversation.`
+  This prevents local LLMs from "helpfully" switching to the conversation's language.
+- **Translation is a separate step**: The English source JSON is kept as the authoritative
+  record; translations are supplementary output.
+- **LLM calls**: 4 calls per report (summary, activity, roles, tactics), each focused on
+  one section to keep context short and reduce truncation risk.
+- **Fallback safety**: If the LLM omits a field in the translated JSON, the original
+  English value is preserved. Translation failure never corrupts the report.
+
+### Supported Languages (built-in names)
+
+| Code | Language |
+|---|---|
+| `ja` | Japanese |
+| `zh` | Simplified Chinese |
+| `ko` | Korean |
+| `de` | German |
+| `fr` | French |
+| `es` | Spanish |
+
+Any BCP-47 code can be used; the code is passed directly to the LLM as the target language
+name for unlisted languages.
+
+### Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Some fields not translated | LLM treats technical-looking text as code | Acceptable — tool names and commands should remain in English |
+| JSON parse error | LLM returned malformed JSON | `json-repair` handles most cases; retry or use a more capable model |
+| Input file rejected | File missing `summary` or `tactics` keys | Run `aiir report --format json` first to generate a valid report |
 
 ---
 

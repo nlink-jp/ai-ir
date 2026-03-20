@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-03-20
+
+### Added
+- **`aiir translate` command**: translate a report JSON into another language while
+  preserving technical content (tool names, commands, IOCs, IDs, tags, category slugs).
+  Saves translated output as `<stem>.<lang>.json` alongside the source file.
+  Supported languages: `ja` (Japanese), `zh` (Simplified Chinese), `ko` (Korean),
+  `de` (German), `fr` (French), `es` (Spanish); any BCP-47 code accepted.
+  Translation is performed section by section (summary, activity, roles, tactics)
+  with 4 focused LLM calls per report.
+- `src/aiir/translate/translator.py` — new module with `translate_report()` and
+  per-section helpers (`_translate_summary`, `_translate_activity`, `_translate_roles`,
+  `_translate_tactics`).
+- 12 new tests in `tests/test_translate/test_translator.py` covering field preservation,
+  fallback on missing LLM keys, and section-skipping for partial reports.
+
+### Fixed
+- **`Relationship.to_user` list coercion**: LLMs sometimes return a list of
+  usernames for the `to_user` field (e.g. group relationships). Added
+  `field_validator` to join list values into a comma-separated string instead
+  of raising a `ValidationError`.
+
+### Changed
+- **English output enforced in all analysis prompts**: added
+  `IMPORTANT: Always respond in English regardless of the language of the input conversation.`
+  to the system prompts of `summarizer.py`, `activity.py`, `roles.py`, and `extractor.py`.
+  Prevents LLMs from "helpfully" switching to the input conversation's language
+  (common with local 20B-class models and Japanese IR conversations).
+
 ## [0.3.0] - 2026-03-20
 
 ### Added

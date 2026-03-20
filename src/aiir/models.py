@@ -150,6 +150,14 @@ class Relationship(BaseModel):
     relationship_type: str
     description: str
 
+    @field_validator("to_user", mode="before")
+    @classmethod
+    def coerce_list_to_str(cls, v: object) -> Optional[str]:
+        """Join list values (e.g. multiple targets) into a comma-separated string."""
+        if isinstance(v, list):
+            return ", ".join(str(item) for item in v) if v else None
+        return v
+
 
 class ParticipantRole(BaseModel):
     """Inferred role for a single participant."""

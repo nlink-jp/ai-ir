@@ -14,6 +14,7 @@ investigation tactic knowledge documents.
 - `aiir roles` - Infer participant roles and relationships using LLM
 - `aiir knowledge` - Extract reusable investigation tactics, output as YAML knowledge docs
 - `aiir report` - Generate full analysis report
+- `aiir translate` - Translate report JSON into another language (narrative fields only)
 - `aiir serve` - Start read-only local web UI (FastAPI, binds to 127.0.0.1 only)
 
 ### Module Structure
@@ -42,6 +43,8 @@ src/aiir/
     routes.py      - Route handlers (dashboard, report, knowledge, tactic, API)
     loader.py      - File scanning with path traversal prevention
     templates/     - Jinja2 HTML templates (Tailwind CSS CDN, Japanese UI)
+  translate/
+    translator.py  - translate_report(): narrative field translation via LLM
 ```
 
 ## Security Rules

@@ -10,6 +10,7 @@ to generate actionable reports and reusable knowledge.
 - **Activity Analysis** — Per-participant breakdown of methods, tools, and findings
 - **Role Inference** — Infer IR roles (Incident Commander, SME, etc.) and relationships
 - **Knowledge Extraction** — Extract reusable investigation tactics as YAML documents
+- **Translation** — Translate report JSON into another language while preserving technical content
 - **Local Web UI** — Browse analysis output with `aiir serve` (read-only, localhost only)
 - **Security-first** — IoC defanging and prompt injection defense built-in
 
@@ -102,6 +103,21 @@ uv run aiir activity preprocessed.json -o activity.md
 uv run aiir roles preprocessed.json -o roles.md
 uv run aiir knowledge preprocessed.json -d ./knowledge/
 uv run aiir report preprocessed.json -o full-report.md
+```
+
+### Step 3: Translate the report (optional)
+
+Analysis is always performed in English for maximum accuracy. Use `aiir translate` to
+produce a localized version of the report JSON. Technical content (tool names, commands,
+IOCs, IDs, tags) is preserved in English.
+
+```bash
+# Translate to Japanese — saves report.ja.json alongside report.json
+uv run aiir translate report.json --lang ja
+
+# Supported language codes: ja, zh, ko, de, fr, es
+# Any BCP-47 code is accepted for languages not in the built-in list
+uv run aiir translate report.json --lang zh -o report.zh.json
 ```
 
 ### Browse results in the web UI

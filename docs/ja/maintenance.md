@@ -13,6 +13,7 @@
 5. [セキュリティメンテナンス](#5-セキュリティメンテナンス)
 6. [新機能の追加手順](#6-新機能の追加手順)
 6.5. [Web UI（aiir serve）](#65-web-uiaiir-serve)
+6.6. [翻訳（aiir translate）](#66-翻訳aiir-translate)
 7. [テスト戦略](#7-テスト戦略)
 8. [LLM 互換性](#8-llm-互換性)
 9. [リリース手順](#9-リリース手順)
@@ -304,6 +305,68 @@ aiir serve --no-browser
 | レポートが表示されない | JSON 形式が期待と異なる | `aiir report` を先に実行、`summary`+`tactics` キーを確認 |
 | 戦術が表示されない | YAML の id フィールドに `tac-` プレフィックスがない | フォーマッタ出力を確認、`aiir knowledge` を再実行 |
 | ポートが使用中 | ポート 8765 が別プロセスに占有されている | `--port <他のポート>` を使用 |
+
+---
+
+## 6.6. 翻訳（aiir translate）
+
+`aiir translate` コマンドは `aiir report --format json` で生成したレポート JSON を受け取り、
+ナラティブフィールドを対象言語に翻訳したコピーを保存します。
+技術的なコンテンツ（ツール名・コマンド・IOC・ID・タグ）は英語のまま保持されます。
+
+### 使用方法
+
+```bash
+# 日本語に翻訳 — デフォルト出力は report.ja.json
+aiir translate report.json --lang ja
+
+# 出力先を明示指定
+aiir translate report.json --lang zh -o report.zh.json
+```
+
+### 翻訳対象フィールドと保持フィールド
+
+| フィールド | 翻訳 |
+|---|---|
+| `summary.title`, `root_cause`, `resolution`, `summary` | される |
+| `summary.timeline[].event` | される |
+| `activity.participants[].role_hint` | される |
+| `activity.participants[].actions[].purpose`, `findings` | される |
+| `roles.participants[].inferred_role`, `evidence` | される |
+| `roles.relationships[].description` | される |
+| `tactics[].title`, `purpose`, `procedure`, `observations` | される |
+| `activity.actions[].method`（コマンド類） | **されない** |
+| `tactics[].tools`, `tags`, `category`, `id` | **されない** |
+| バッククォートで囲まれたコード | **されない** |
+| IOC・ユーザー名・チャンネル名・タイムスタンプ | **されない** |
+
+### 設計上の注意点
+
+- **分析は常に英語で実行**: 全分析プロンプトに `IMPORTANT: Always respond in English regardless of the language of the input conversation.` を追加済み。ローカルの小規模モデルが入力会話の言語（日本語等）に「気を利かせて」切り替えることを防止します。
+- **翻訳は独立したステップ**: 英語のソース JSON が正規データとして保持され、翻訳版は補助的な出力です。
+- **LLM コール数**: レポート 1 件につき 4 回（summary・activity・roles・tactics 各 1 回）。セクションごとに分けてコンテキストを短く保ち、トークン枯渇リスクを低減します。
+- **フォールバック保証**: 翻訳 LLM がフィールドを返さなかった場合、元の英語値がそのまま保持されます。翻訳失敗でレポートデータが欠損することはありません。
+
+### サポート言語（組み込みラベル）
+
+| コード | 言語 |
+|---|---|
+| `ja` | 日本語 |
+| `zh` | 簡体字中国語 |
+| `ko` | 韓国語 |
+| `de` | ドイツ語 |
+| `fr` | フランス語 |
+| `es` | スペイン語 |
+
+未登録の言語コードも使用可能です。BCP-47 コードをそのまま LLM の目標言語名として渡します。
+
+### トラブルシューティング
+
+| 症状 | 想定原因 | 対処 |
+|---|---|---|
+| 一部フィールドが翻訳されない | LLM が技術的な文字列を「コード」と判断 | ツール名・コマンドが英語のまま残るのは正常動作 |
+| JSON パースエラー | LLM が不正な JSON を返した | `json-repair` でほぼ自動修正される。解決しない場合は高性能モデルを試す |
+| 入力ファイル拒否 | `summary` または `tactics` キーが存在しない | `aiir report --format json` で生成した JSON を指定する |
 
 ---
 

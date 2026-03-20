@@ -63,7 +63,7 @@
           {% for ev in s.get("timeline", []) %}
           <tr class="border-t border-gray-100 hover:bg-gray-50">
             <td class="px-3 py-2 text-gray-500 whitespace-nowrap font-mono text-xs">{{ ev.get("timestamp","") }}</td>
-            <td class="px-3 py-2 font-medium">@{{ ev.get("actor","") }}</td>
+            <td class="px-3 py-2 font-medium">@{{ ev.get("actor","") | strip_at }}</td>
             <td class="px-3 py-2 text-gray-700">{{ ev.get("event","") }}</td>
           </tr>
           {% endfor %}
@@ -93,7 +93,7 @@
     <div class="flex items-center gap-3 mb-4">
       <span class="text-xl">👤</span>
       <div>
-        <h2 class="font-semibold">@{{ p.get("user_name","") }}</h2>
+        <h2 class="font-semibold">@{{ p.get("user_name","") | strip_at }}</h2>
         <p class="text-sm text-gray-500">{{ p.get("role_hint","") }}</p>
       </div>
     </div>
@@ -135,7 +135,7 @@
     {% set cc = conf_colors.get(p.get("confidence","low"), "gray") %}
     <div class="bg-white rounded-lg shadow p-5">
       <div class="flex justify-between items-start mb-2">
-        <h3 class="font-semibold">@{{ p.get("user_name","") }}</h3>
+        <h3 class="font-semibold">@{{ p.get("user_name","") | strip_at }}</h3>
         <span class="text-xs px-2 py-0.5 rounded bg-{{ cc }}-100 text-{{ cc }}-700">
           {{ p.get("confidence","").upper() }}
         </span>
@@ -164,9 +164,9 @@
       <tbody>
         {% for rel in roles_data.get("relationships", []) %}
         <tr class="border-t border-gray-100">
-          <td class="px-3 py-2 font-medium">@{{ rel.get("from_user","") }}</td>
+          <td class="px-3 py-2 font-medium">@{{ rel.get("from_user","") | strip_at }}</td>
           <td class="px-3 py-2"><span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{{ rel.get("relationship_type","") }}</span></td>
-          <td class="px-3 py-2 font-medium">@{{ rel.get("to_user","") }}</td>
+          <td class="px-3 py-2 font-medium">@{{ rel.get("to_user","") | strip_at }}</td>
           <td class="px-3 py-2 text-gray-600">{{ rel.get("description","") }}</td>
         </tr>
         {% endfor %}
@@ -198,7 +198,7 @@
     {% endif %}
     <details class="text-sm">
       <summary class="cursor-pointer text-blue-600 hover:underline">手順を見る</summary>
-      <pre class="mt-2 text-xs bg-gray-50 p-3 rounded whitespace-pre-wrap text-gray-700">{{ t.get("procedure","") }}</pre>
+      <pre class="mt-2 text-xs bg-gray-50 p-3 rounded whitespace-pre-wrap text-gray-700">{{ t.get("procedure","") | format_steps }}</pre>
     </details>
     {% if t.get("tags") %}
     <div class="flex flex-wrap gap-1 mt-3">
