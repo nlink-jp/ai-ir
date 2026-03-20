@@ -76,7 +76,13 @@ def analyze_activity(export: ProcessedExport, client: LLMClient) -> ActivityAnal
 Identify each participant's specific actions, methods, and findings."""
 
     response_json = client.complete_json(system_prompt, user_prompt)
-    data = json.loads(response_json)
+    try:
+        data = json.loads(response_json)
+    except json.JSONDecodeError as e:
+        raise ValueError(
+            f"LLM returned invalid JSON for activity analysis: {e}\n"
+            f"Response (first 500 chars): {response_json[:500]}"
+        ) from e
     return ActivityAnalysis.model_validate(data)
 
 
@@ -122,9 +128,9 @@ def format_activity_markdown(analysis: ActivityAnalysis) -> str:
             lines.append("| Time | Purpose | Method | Findings |")
             lines.append("|------|---------|--------|----------|")
             for action in participant.actions:
-                purpose = action.purpose.replace("|", "\\|")
-                method = action.method.replace("|", "\\|")
-                findings = action.findings.replace("|", "\\|")
+                purpose = action.purpose.replace("|", "\\|").replace("\n", "<br>")
+                method = action.method.replace("|", "\\|").replace("\n", "<br>")
+                findings = action.findings.replace("|", "\\|").replace("\n", "<br>")
                 lines.append(
                     f"| {action.timestamp} | {purpose} | {method} | {findings} |"
                 )

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-03-20
+
+### Fixed
+- **Markdown table newlines**: Newline characters in LLM-generated table cell content are now
+  escaped to `<br>` in all Markdown generators (`report/generator.py`, `analyze/activity.py`,
+  `analyze/summarizer.py`, `analyze/roles.py`). Prevents broken table formatting when the LLM
+  includes multi-line text in timeline events, activity actions, or relationships.
+- **LLM JSON parse errors**: All four analysis modules (`summarizer`, `activity`, `roles`,
+  `extractor`) now wrap `json.loads()` in a try-except that raises a `ValueError` with the
+  analysis type and the first 500 characters of the LLM response. Produces a diagnostic error
+  instead of a raw `JSONDecodeError` traceback.
+- **NDJSON line numbers in errors**: `parser/loader.py` now uses `enumerate(f, start=1)` and
+  includes the file path and line number in parse error messages, making malformed stail exports
+  easier to debug.
+
+### Changed
+- **Dependency version upper bounds**: All runtime dependencies now carry explicit major-version
+  upper bounds (e.g. `pydantic>=2.0,<3.0`) to prevent silent breakage from future major releases.
+
 ## [1.0.0] - 2026-03-20
 
 First official release. Consolidates all pre-release development (v0.1.0–v0.5.0)

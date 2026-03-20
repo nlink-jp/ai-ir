@@ -106,7 +106,13 @@ Extract all reusable investigation tactics demonstrated in this conversation.
 Focus on specific methods, commands, and approaches that could help in future incidents."""
 
     response_json = client.complete_json(system_prompt, user_prompt)
-    data = json.loads(response_json)
+    try:
+        data = json.loads(response_json)
+    except json.JSONDecodeError as e:
+        raise ValueError(
+            f"LLM returned invalid JSON for tactic extraction: {e}\n"
+            f"Response (first 500 chars): {response_json[:500]}"
+        ) from e
 
     raw_tactics = data.get("tactics", [])
     incident_date = export.export_timestamp.date()

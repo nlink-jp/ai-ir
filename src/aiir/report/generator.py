@@ -81,7 +81,8 @@ def generate_markdown_report(
         lines.append("| Time | Actor | Event |")
         lines.append("|------|-------|-------|")
         for event in summary.timeline:
-            lines.append(f"| {event.timestamp} | {event.actor} | {event.event} |")
+            event_text = event.event.replace("|", "\\|").replace("\n", "<br>")
+            lines.append(f"| {event.timestamp} | {event.actor} | {event_text} |")
         lines.append("")
 
     if summary.root_cause:
@@ -110,9 +111,9 @@ def generate_markdown_report(
             lines.append("| Time | Purpose | Method | Findings |")
             lines.append("|------|---------|--------|----------|")
             for action in participant.actions:
-                purpose = action.purpose.replace("|", "\\|")
-                method = action.method.replace("|", "\\|")
-                findings = action.findings.replace("|", "\\|")
+                purpose = action.purpose.replace("|", "\\|").replace("\n", "<br>")
+                method = action.method.replace("|", "\\|").replace("\n", "<br>")
+                findings = action.findings.replace("|", "\\|").replace("\n", "<br>")
                 lines.append(
                     f"| {action.timestamp} | {purpose} | {method} | {findings} |"
                 )

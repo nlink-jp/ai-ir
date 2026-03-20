@@ -25,11 +25,16 @@ def _load_ndjson(path: Path) -> SlackExport:
     """
     messages: list[SlackMessage] = []
     with open(path, encoding="utf-8") as f:
-        for line in f:
+        for line_number, line in enumerate(f, start=1):
             line = line.strip()
             if not line:
                 continue
-            messages.append(SlackMessage.model_validate(json.loads(line)))
+            try:
+                messages.append(SlackMessage.model_validate(json.loads(line)))
+            except (json.JSONDecodeError, Exception) as e:
+                raise ValueError(
+                    f"{path}:{line_number}: failed to parse NDJSON line: {e}"
+                ) from e
     if not messages:
         raise ValueError(f"No messages found in {path}")
     export_timestamp = max(m.timestamp for m in messages)

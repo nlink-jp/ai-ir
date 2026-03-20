@@ -64,7 +64,13 @@ def summarize_incident(export: ProcessedExport, client: LLMClient) -> IncidentSu
 Generate a comprehensive incident summary."""
 
     response_json = client.complete_json(system_prompt, user_prompt)
-    data = json.loads(response_json)
+    try:
+        data = json.loads(response_json)
+    except json.JSONDecodeError as e:
+        raise ValueError(
+            f"LLM returned invalid JSON for incident summary: {e}\n"
+            f"Response (first 500 chars): {response_json[:500]}"
+        ) from e
     return IncidentSummary.model_validate(data)
 
 
@@ -122,7 +128,8 @@ def format_summary_markdown(summary: IncidentSummary) -> str:
         lines.append("| Time | Actor | Event |")
         lines.append("|------|-------|-------|")
         for event in summary.timeline:
-            lines.append(f"| {event.timestamp} | {event.actor} | {event.event} |")
+            event_text = event.event.replace("|", "\\|").replace("\n", "<br>")
+            lines.append(f"| {event.timestamp} | {event.actor} | {event_text} |")
         lines.append("")
 
     if summary.root_cause:

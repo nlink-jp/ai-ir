@@ -89,7 +89,13 @@ def analyze_roles(export: ProcessedExport, client: LLMClient) -> RoleAnalysis:
 Infer the role of each participant and identify key relationships."""
 
     response_json = client.complete_json(system_prompt, user_prompt)
-    data = json.loads(response_json)
+    try:
+        data = json.loads(response_json)
+    except json.JSONDecodeError as e:
+        raise ValueError(
+            f"LLM returned invalid JSON for role analysis: {e}\n"
+            f"Response (first 500 chars): {response_json[:500]}"
+        ) from e
     return RoleAnalysis.model_validate(data)
 
 
@@ -148,9 +154,10 @@ def format_roles_markdown(analysis: RoleAnalysis) -> str:
         lines.append("| From | Relationship | To | Description |")
         lines.append("|------|-------------|----|-------------|")
         for rel in analysis.relationships:
+            description = rel.description.replace("|", "\\|").replace("\n", "<br>")
             lines.append(
                 f"| @{rel.from_user} | {rel.relationship_type} "
-                f"| @{rel.to_user} | {rel.description} |"
+                f"| @{rel.to_user} | {description} |"
             )
         lines.append("")
 
