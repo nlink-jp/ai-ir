@@ -127,9 +127,17 @@ def test_config_uses_keychain_when_env_not_set(fake_keyring):
 
         # Reload to bypass lru_cache
         importlib.reload(cfg_module)
-        try:
-            result = cfg_module.get_llm_config()
-            assert result.api_key == "keychain-key-xyz"
-        except ValueError:
-            # Acceptable if keyring mock isn't wired perfectly in this scope
-            pass
+        # Also patch get_config() so pydantic-settings doesn't read .env file
+        mock_llm_cfg = cfg_module.LLMConfig(
+            base_url="http://localhost/v1",
+            api_key="",
+            model="test-model",
+        )
+        with patch.object(cfg_module, "get_config") as mock_get_config:
+            mock_get_config.return_value = MagicMock(llm=mock_llm_cfg)
+            try:
+                result = cfg_module.get_llm_config()
+                assert result.api_key == "keychain-key-xyz"
+            except ValueError:
+                # Acceptable if keyring mock isn't wired perfectly in this scope
+                pass

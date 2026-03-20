@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 # ---------------------------------------------------------------------------
@@ -136,7 +136,7 @@ class Relationship(BaseModel):
     """A relationship between two participants."""
 
     from_user: str
-    to_user: str
+    to_user: Optional[str] = None
     relationship_type: str
     description: str
 
@@ -184,3 +184,11 @@ class Tactic(BaseModel):
     tags: list[str] = []
     source: TacticSource
     created_at: str  # ISO date string (YYYY-MM-DD)
+
+    @field_validator("procedure", "observations", mode="before")
+    @classmethod
+    def coerce_list_to_str(cls, v: object) -> str:
+        """Join list values returned by some LLMs into a newline-separated string."""
+        if isinstance(v, list):
+            return "\n".join(str(item) for item in v)
+        return v

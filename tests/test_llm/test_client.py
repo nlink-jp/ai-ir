@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+import openai
 import pytest
 
 from aiir.config import LLMConfig
@@ -176,3 +177,30 @@ def test_complete_json_passes_correct_messages():
     assert messages[0]["content"] == "my system"
     assert messages[1]["role"] == "user"
     assert messages[1]["content"] == "my user"
+
+
+def test_complete_json_falls_back_to_text_on_bad_request():
+    """complete_json falls back to text mode when endpoint rejects json_object."""
+    config = _make_config()
+
+    mock_response = _make_mock_response('{"key": "value"}')
+    bad_request = openai.BadRequestError(
+        message="unsupported response_format",
+        response=MagicMock(status_code=400, headers={}),
+        body={"error": "unsupported"},
+    )
+
+    with patch("aiir.llm.client.OpenAI") as mock_openai_cls:
+        mock_openai = MagicMock()
+        mock_openai_cls.return_value = mock_openai
+        # First call raises BadRequestError, second succeeds
+        mock_openai.chat.completions.create.side_effect = [bad_request, mock_response]
+
+        client = LLMClient(config)
+        result = client.complete_json("sys", "user")
+
+    assert result == '{"key": "value"}'
+    assert mock_openai.chat.completions.create.call_count == 2
+    # Second call must not have response_format
+    second_call_kwargs = mock_openai.chat.completions.create.call_args_list[1][1]
+    assert "response_format" not in second_call_kwargs

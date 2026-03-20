@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import openai
+from json_repair import repair_json
 from openai import OpenAI
 
 from aiir.config import LLMConfig
@@ -61,7 +63,9 @@ class LLMClient:
     def complete_json(self, system_prompt: str, user_prompt: str) -> str:
         """Request JSON output from the LLM.
 
-        Enables JSON mode which ensures the model outputs valid JSON.
+        Attempts JSON mode (``response_format={"type": "json_object"}``).
+        Falls back to plain text mode if the endpoint does not support it
+        (e.g. local LLMs that only accept ``"json_schema"`` or ``"text"``).
 
         Args:
             system_prompt: System message (should describe the expected JSON schema).
@@ -70,8 +74,15 @@ class LLMClient:
         Returns:
             The model's JSON response as a string.
         """
-        return self.complete(
-            system_prompt,
-            user_prompt,
-            response_format={"type": "json_object"},
-        )
+        try:
+            raw = self.complete(
+                system_prompt,
+                user_prompt,
+                response_format={"type": "json_object"},
+            )
+        except openai.BadRequestError:
+            # Endpoint does not support json_object mode; rely on prompt alone.
+            raw = self.complete(system_prompt, user_prompt)
+        # Normalize: strip markdown code fences and repair minor JSON issues
+        # (some local LLMs wrap output in ```json ... ``` even in text mode).
+        return repair_json(raw or "")
