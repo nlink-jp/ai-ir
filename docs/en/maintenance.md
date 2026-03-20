@@ -1,0 +1,399 @@
+# ai-ir Maintenance Guide
+
+This document describes procedures for maintaining and improving the ai-ir toolset.
+
+---
+
+## Table of Contents
+
+1. [Routine Maintenance](#1-routine-maintenance)
+2. [Dependency Management](#2-dependency-management)
+3. [Prompt Maintenance](#3-prompt-maintenance)
+4. [Adding and Changing Knowledge Categories](#4-adding-and-changing-knowledge-categories)
+5. [Security Maintenance](#5-security-maintenance)
+6. [Adding New Features](#6-adding-new-features)
+7. [Test Strategy](#7-test-strategy)
+8. [Release Procedure](#8-release-procedure)
+9. [Troubleshooting](#9-troubleshooting)
+
+---
+
+## 1. Routine Maintenance
+
+### Running Tests
+
+```bash
+# All tests (recommended: always run before and after changes)
+uv run pytest tests/ -v
+
+# With coverage
+uv run pytest tests/ --cov=src/aiir --cov-report=term-missing
+
+# Specific module only
+uv run pytest tests/test_parser/ -v
+uv run pytest tests/test_knowledge/ -v
+```
+
+### Checking Configuration
+
+```bash
+# Show current configuration (API key is masked)
+aiir config show
+```
+
+---
+
+## 2. Dependency Management
+
+### Regular Updates (Recommended Monthly)
+
+```bash
+# Update uv.lock to latest
+uv lock --upgrade
+
+# Install updated dependencies
+uv sync
+
+# Verify no regressions with tests
+uv run pytest tests/ -v
+```
+
+### Security Vulnerability Scanning
+
+```bash
+# Scan for known vulnerabilities with pip-audit (install first if needed)
+uv add --dev pip-audit
+uv run pip-audit
+```
+
+If vulnerabilities are found, raise the minimum version bound for the affected package
+in `pyproject.toml` and update with `uv lock --upgrade-package <package-name>`.
+
+### Adding Dependencies
+
+```bash
+# Production dependency
+uv add <package>
+
+# Development only
+uv add --dev <package>
+
+# Confirm both pyproject.toml and uv.lock are updated
+git diff pyproject.toml uv.lock
+```
+
+---
+
+## 3. Prompt Maintenance
+
+Prompts are defined as `SYSTEM_PROMPT` constants in each analysis module.
+
+| File | Responsibility |
+|---|---|
+| `src/aiir/analyze/summarizer.py` | Incident summary generation |
+| `src/aiir/analyze/activity.py` | Participant activity analysis |
+| `src/aiir/analyze/roles.py` | Role and relationship inference |
+| `src/aiir/knowledge/extractor.py` | Tactic knowledge extraction |
+
+### Checklist for Changing Prompts
+
+1. **Run tests before making changes** to record the current state
+2. **Always preserve the security guards** (the following two elements must not be removed or weakened):
+   - Wrapping data in `<user_message>` tags
+   - Explicitly stating that content within the tags is data, not instructions
+3. **If the JSON schema changes**, also update the corresponding model in `src/aiir/models.py`
+4. **Record the change in CHANGELOG.md**
+
+### Impact Scope of Prompt Changes
+
+```
+Changing SYSTEM_PROMPT
+    ├─ JSON schema changed    → also update models in models.py
+    ├─ Output fields added    → also update Markdown formatter
+    └─ Categories changed     → also update tests in test_extractor_prompt.py
+```
+
+### Verifying Prompt Behavior
+
+Example script to validate prompts against the actual LLM:
+
+```bash
+# Try summarize with sample data
+aiir summarize tests/fixtures/sample_export.json
+```
+
+It is also recommended to visually inspect the output of `aiir ingest` before
+sending it to the production LLM.
+
+---
+
+## 4. Adding and Changing Knowledge Categories
+
+### Steps to Add a New Category
+
+**Step 1** — Add the category to `SYSTEM_PROMPT` in `src/aiir/knowledge/extractor.py`
+
+```python
+# Example: adding a new Linux category
+- linux-newcategory: Brief description of target tools or techniques — `tool1`, `tool2`
+```
+
+Formatting principles:
+- Category names use kebab-case (`platform-concept`)
+- Include representative tool names and commands in the description (helps the LLM classify correctly)
+- Platform-specific categories should have `linux-`/`windows-`/`macos-` prefixes
+
+**Step 2** — Add tests to `tests/test_knowledge/test_extractor_prompt.py`
+
+```python
+@pytest.mark.parametrize("category", [
+    ...,
+    "linux-newcategory",  # ← add here
+])
+def test_linux_category_present(category):
+    assert category in SYSTEM_PROMPT
+```
+
+Also add tests for representative tool names:
+
+```python
+@pytest.mark.parametrize("tool", [
+    ...,
+    "tool1",  # ← add here
+])
+def test_linux_tool_mentioned(tool):
+    assert tool in SYSTEM_PROMPT
+```
+
+**Step 3** — Update the table in the Knowledge Format section of `CLAUDE.md`
+
+**Step 4** — Add an entry to `CHANGELOG.md` and commit
+
+### Removing or Merging Categories
+
+Removing an existing category breaks consistency with previously generated YAML knowledge
+documents. Prefer **merging into `other`** or **expanding the category description** over
+deletion.
+
+If deletion is unavoidable:
+1. Determine the target category for migration
+2. Bulk-replace existing YAML files (`sed -i` or a Python script)
+3. Update tests accordingly
+
+---
+
+## 5. Security Maintenance
+
+### Extending IoC Defang Patterns
+
+If a new IoC type is needed (e.g., IPv6, Bitcoin addresses), edit
+`src/aiir/parser/defang.py`.
+
+Required steps when adding:
+- Add regex tests to `tests/test_parser/test_defang.py`
+- Verify both false positives (over-matching) and false negatives (misses)
+- Ensure no overlap with existing IoC processing (the `_overlaps()` function guards this)
+
+```python
+# Example: adding a new pattern (defang.py)
+_NEW_PATTERN = re.compile(r"...", re.IGNORECASE)
+
+# Add at the appropriate priority position within defang_text()
+for m in _NEW_PATTERN.finditer(text):
+    if _overlaps(m.start(), m.end(), replacements):
+        continue
+    ...
+```
+
+### Extending Prompt Injection Detection Patterns
+
+If a new attack pattern is discovered, append it to the `INJECTION_PATTERNS` list
+in `src/aiir/parser/sanitizer.py`.
+
+```python
+INJECTION_PATTERNS = [
+    ...
+    r"new_pattern",  # Add a comment explaining how/where this was found
+]
+```
+
+Don't forget to add corresponding tests to `tests/test_parser/test_sanitizer.py`.
+
+### API Key Rotation
+
+```bash
+# If stored in Keychain
+aiir config delete-key
+aiir config set-key   # enter the new key
+
+# If managed via environment variable
+export AIIR_LLM_API_KEY=<new-key>
+# or edit the .env file
+```
+
+If a credential leak occurred during incident response, rotate the API key used for
+the analysis promptly (see also the recommendations in `docs/en/security.md`).
+
+---
+
+## 6. Adding New Features
+
+### Adding a New Analysis Subcommand
+
+Perform the following in order:
+
+1. **`src/aiir/models.py`** — Add input/output data models (Pydantic)
+2. **`src/aiir/analyze/<name>.py`** — Implement analysis logic and `SYSTEM_PROMPT`
+3. **`src/aiir/cli.py`** — Register the subcommand with `@main.command()`
+4. **`tests/test_analyze/test_<name>.py`** — Write tests with the LLM client mocked
+5. **`CHANGELOG.md`** — Document the addition
+6. **`README.md`** — Add usage examples
+
+### Supporting a New Input Format
+
+Currently only the scat/stail JSON export format is supported. To support a new format
+(e.g., Splunk export):
+
+1. Define a new model (e.g., `SplunkExport`) in `src/aiir/models.py`
+2. Add a corresponding loader function to `src/aiir/parser/loader.py`
+3. Add format detection logic to `_load_or_preprocess()` in `src/aiir/cli.py`
+4. Add sample files to `tests/fixtures/` and write tests
+
+---
+
+## 7. Test Strategy
+
+### Test Types and Responsibilities
+
+| Test Type | Location | What it tests |
+|---|---|---|
+| Unit tests | `tests/test_parser/` | Direct input/output verification of defang and sanitizer |
+| Prompt content tests | `tests/test_knowledge/test_extractor_prompt.py` | Whether categories and tool names exist in SYSTEM_PROMPT |
+| Mock integration tests | `tests/test_llm/` | API call format of the LLM client |
+| Formatter tests | `tests/test_knowledge/test_formatter.py` | Structure of YAML output |
+| Keychain tests | `tests/test_keychain/` | Behavior verification with an in-memory mock keyring |
+
+### Testing Policy for LLM-Dependent Features
+
+Do **not** write tests that make real calls to the LLM (OpenAI API). Reasons:
+
+- Incurs cost
+- Non-deterministic responses make CI unstable
+- Rate limits can be hit
+
+Instead, use `unittest.mock.patch` to mock the `OpenAI` class and verify that the
+client calls the API with the correct parameters (`model`, `messages`, `response_format`).
+Correctness of the analysis logic is ensured by prompt content tests and manual verification.
+
+### Testing Principles
+
+- Follow the **Arrange / Act / Assert** three-part structure
+- Recommended test name format: `test_<subject>_<condition>_<expected_result>`
+- Use `pytest.mark.parametrize` actively to cover boundary values, normal values, and error cases
+- Each test function should verify exactly one thing
+
+---
+
+## 8. Release Procedure
+
+### Version Numbering Policy
+
+Follows [Semantic Versioning](https://semver.org/):
+
+| Type of Change | Version |
+|---|---|
+| Security fix, bug fix | PATCH (x.y.**Z**) |
+| New category, prompt improvement, new subcommand | MINOR (x.**Y**.0) |
+| Breaking data model change, CLI interface change | MAJOR (**X**.0.0) |
+
+### Release Steps
+
+```bash
+# 1. Confirm all tests pass
+uv run pytest tests/ -v
+
+# 2. Update version in src/aiir/__init__.py
+#    __version__ = "x.y.z"
+
+# 3. Update version in pyproject.toml
+#    version = "x.y.z"
+
+# 4. Change [Unreleased] to [x.y.z] - YYYY-MM-DD in CHANGELOG.md,
+#    and add a new [Unreleased] section at the top
+
+# 5. Commit
+git add src/aiir/__init__.py pyproject.toml CHANGELOG.md
+git commit -m "chore: release v x.y.z"
+
+# 6. Tag
+git tag vx.y.z
+```
+
+### CHANGELOG Format
+
+```markdown
+## [x.y.z] - YYYY-MM-DD
+
+### Added
+- Description of new feature
+
+### Changed
+- Description of change (prefix breaking changes with "**Breaking:**")
+
+### Fixed
+- Description of bug fix
+
+### Security
+- Description of security fix
+```
+
+---
+
+## 9. Troubleshooting
+
+### `AIIR_LLM_API_KEY is not configured` Error
+
+```bash
+# Check current configuration
+aiir config show
+
+# Set via environment variable
+export AIIR_LLM_API_KEY=<your-key>
+
+# Or store in Keychain
+aiir config set-key
+```
+
+### LLM Returns No JSON / JSON Parse Error
+
+`complete_json()` specifies `response_format={"type": "json_object"}`, but some models
+and self-hosted models may ignore this mode.
+
+Solutions:
+1. Verify the model supports JSON mode
+2. Change `AIIR_LLM_MODEL` to try a different model
+3. Check whether the LLM response is valid JSON using `--debug` logs
+
+### Large Number of Injection Risk Warnings from `ingest`
+
+IR conversations often contain attacker commands and pseudo-instructions, making false
+positives common. You can reduce false positives by adjusting `INJECTION_PATTERNS` in
+`src/aiir/parser/sanitizer.py`.
+
+Confirm that existing tests still pass after any changes.
+
+### `uv sync` Fails in a Sandbox Environment
+
+```bash
+# Re-run with a writable cache directory
+UV_CACHE_DIR=/tmp/uv-cache uv sync
+```
+
+### Tests Suddenly Fail (Prompt Tests)
+
+`test_extractor_prompt.py` verifies that category names and tool names are present in
+the prompt string. If tests fail after editing the prompt:
+
+1. Identify the category names or tool names that were removed or changed
+2. Update the tests accordingly, or reconsider the prompt changes
+3. Check whether the removed category is used in any existing YAML knowledge documents
