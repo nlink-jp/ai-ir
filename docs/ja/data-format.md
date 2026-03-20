@@ -64,7 +64,7 @@
       "post_type": "user",
       "timestamp": "2026-03-19T09:55:00Z",
       "timestamp_unix": "1742378100.000000",
-      "text": "<user_message>\nServer at 192[.]168[.]1[.]100 is down.\n</user_message>",
+      "text": "<user_message_a3f9c1b2d4e5f678>\nServer at 192[.]168[.]1[.]100 is down.\n</user_message_a3f9c1b2d4e5f678>",
       "files": [],
       "thread_timestamp_unix": "",
       "is_reply": false,
@@ -79,7 +79,8 @@
       "injection_warnings": []
     }
   ],
-  "security_warnings": []
+  "security_warnings": [],
+  "sanitization_nonce": "a3f9c1b2d4e5f678"
 }
 ```
 
@@ -89,6 +90,7 @@
 | フィールド | 型 | 説明 |
 |---|---|---|
 | `security_warnings` | string[] | 全メッセージから集約した警告の一覧 |
+| `sanitization_nonce` | string | `<user_message_{nonce}>` ラッピングタグに埋め込まれるランダム16進数文字列。タグ名の推測によるプロンプトインジェクションを防ぐ |
 
 #### メッセージごと
 | フィールド | 型 | 説明 |
@@ -179,6 +181,73 @@
       "relationship_type": "reports_to",
       "description": "Bob provided status updates to Alice"
     }
+  ]
+}
+```
+
+### タクティクス（JSON）
+
+タクティクスは `aiir report` が生成するレポート JSON の `"tactics"` 配列に含まれ、個別の YAML ファイルとしても保存されます（[knowledge-format.md](knowledge-format.md) 参照）。
+
+```json
+{
+  "id": "tac-20260319-001",
+  "title": "Check Pod Logs for OOM Events",
+  "purpose": "Identify whether a Kubernetes pod was killed by the OOM killer",
+  "category": "container-analysis",
+  "tools": ["kubectl", "grep"],
+  "procedure": "1. kubectl get pods -n <namespace>\n2. kubectl describe pod <name>",
+  "observations": "Exit code 137 indicates OOM kill",
+  "tags": ["kubernetes", "oom", "memory"],
+  "confidence": "confirmed",
+  "evidence": "Alice shared kubectl output showing OOMKilled status in the channel",
+  "source": {
+    "channel": "#incident-response",
+    "participants": ["alice", "bob"]
+  },
+  "created_at": "2026-03-19"
+}
+```
+
+### IncidentReview（JSON）
+
+`aiir review` の出力。元レポートと同じディレクトリに `<stem>.review.json` として保存されます。
+
+```json
+{
+  "incident_id": "abc123def456",
+  "channel": "#incident-response",
+  "overall_score": "good",
+  "phases": [
+    {
+      "phase": "detection",
+      "estimated_duration": "~5 minutes",
+      "quality": "good",
+      "notes": "Alert fired quickly after the event."
+    },
+    {
+      "phase": "resolution",
+      "estimated_duration": "~30 minutes",
+      "quality": "adequate",
+      "notes": "Pod restart resolved the symptom; root cause analysis deferred."
+    }
+  ],
+  "communication": {
+    "overall": "Team communicated clearly throughout.",
+    "delays_observed": [],
+    "silos_observed": []
+  },
+  "role_clarity": {
+    "ic_identified": true,
+    "ic_name": "alice",
+    "gaps": [],
+    "overlaps": []
+  },
+  "tool_appropriateness": "Appropriate tools used; kubectl and log inspection were well-targeted.",
+  "strengths": ["Fast detection", "Clear communication"],
+  "improvements": ["Add runbook link in channel topic before next incident"],
+  "checklist": [
+    {"item": "Verify alert thresholds quarterly", "priority": "medium"}
   ]
 }
 ```

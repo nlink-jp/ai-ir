@@ -172,7 +172,7 @@ def test_linux_tool_mentioned(tool):
     assert tool in SYSTEM_PROMPT
 ```
 
-**Step 3** — Update the table in the Knowledge Format section of `CLAUDE.md`
+**Step 3** — Update the category table in `docs/en/knowledge-format.md` (and `docs/ja/knowledge-format.md`)
 
 **Step 4** — Add an entry to `CHANGELOG.md` and commit
 

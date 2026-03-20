@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json as _json
 from typing import Literal, Optional
 
 from pydantic import AwareDatetime, BaseModel, field_validator
@@ -104,6 +105,24 @@ class IncidentSummary(BaseModel):
     root_cause: str = ""
     resolution: str = ""
     summary: str = ""
+
+    @field_validator("timeline", mode="before")
+    @classmethod
+    def parse_timeline_strings(cls, v: object) -> object:
+        """Normalize LLM output: parse JSON-string elements into dicts."""
+        if not isinstance(v, list):
+            return v
+        result = []
+        for item in v:
+            if isinstance(item, str):
+                try:
+                    parsed = _json.loads(item)
+                    result.append(parsed)
+                except (_json.JSONDecodeError, ValueError):
+                    pass  # skip unparseable strings
+            else:
+                result.append(item)
+        return result
 
 
 class Action(BaseModel):

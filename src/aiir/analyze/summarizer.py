@@ -7,6 +7,7 @@ import secrets
 
 from aiir.llm.client import LLMClient
 from aiir.models import IncidentSummary, ProcessedExport
+from aiir.utils import format_conversation
 
 
 def _build_system_prompt(nonce: str) -> str:
@@ -55,7 +56,7 @@ def summarize_incident(export: ProcessedExport, client: LLMClient) -> IncidentSu
     """
     nonce = export.sanitization_nonce or secrets.token_hex(8)
     system_prompt = _build_system_prompt(nonce)
-    conversation_text = _format_conversation(export)
+    conversation_text = format_conversation(export)
 
     user_prompt = f"""Analyze this incident response conversation from channel {export.channel_name}:
 
@@ -73,26 +74,6 @@ Generate a comprehensive incident summary."""
         ) from e
     return IncidentSummary.model_validate(data)
 
-
-def _format_conversation(export: ProcessedExport) -> str:
-    """Format conversation messages for LLM input.
-
-    Skips bot messages and formats user messages with timestamp and username.
-    The ``msg.text`` field already contains the nonce-tagged wrapping applied
-    during ``aiir ingest``.
-
-    Args:
-        export: ProcessedExport to format.
-
-    Returns:
-        Formatted conversation string.
-    """
-    lines = []
-    for msg in export.messages:
-        ts = msg.timestamp.strftime("%Y-%m-%d %H:%M:%S")
-        prefix = "[bot] " if msg.post_type == "bot" else ""
-        lines.append(f"[{ts}] {prefix}@{msg.user_name}: {msg.text}")
-    return "\n".join(lines)
 
 
 def format_summary_markdown(summary: IncidentSummary) -> str:

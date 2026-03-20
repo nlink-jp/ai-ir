@@ -64,7 +64,7 @@ Output of `aiir ingest`. Extends the input format with security metadata.
       "post_type": "user",
       "timestamp": "2026-03-19T09:55:00Z",
       "timestamp_unix": "1742378100.000000",
-      "text": "<user_message>\nServer at 192[.]168[.]1[.]100 is down.\n</user_message>",
+      "text": "<user_message_a3f9c1b2d4e5f678>\nServer at 192[.]168[.]1[.]100 is down.\n</user_message_a3f9c1b2d4e5f678>",
       "files": [],
       "thread_timestamp_unix": "",
       "is_reply": false,
@@ -79,7 +79,8 @@ Output of `aiir ingest`. Extends the input format with security metadata.
       "injection_warnings": []
     }
   ],
-  "security_warnings": []
+  "security_warnings": [],
+  "sanitization_nonce": "a3f9c1b2d4e5f678"
 }
 ```
 
@@ -89,6 +90,7 @@ Output of `aiir ingest`. Extends the input format with security metadata.
 | Field | Type | Description |
 |---|---|---|
 | `security_warnings` | string[] | Aggregate warnings from all messages |
+| `sanitization_nonce` | string | Random hex string embedded in `<user_message_{nonce}>` wrapping tags to prevent prompt injection via tag-name guessing |
 
 #### Per-message
 | Field | Type | Description |
@@ -179,6 +181,73 @@ Output of `aiir ingest`. Extends the input format with security metadata.
       "relationship_type": "reports_to",
       "description": "Bob provided status updates to Alice"
     }
+  ]
+}
+```
+
+### Tactic (JSON)
+
+Tactics are embedded in the full report JSON under `"tactics"` and also saved as individual YAML files (see [knowledge-format.md](knowledge-format.md)).
+
+```json
+{
+  "id": "tac-20260319-001",
+  "title": "Check Pod Logs for OOM Events",
+  "purpose": "Identify whether a Kubernetes pod was killed by the OOM killer",
+  "category": "container-analysis",
+  "tools": ["kubectl", "grep"],
+  "procedure": "1. kubectl get pods -n <namespace>\n2. kubectl describe pod <name>",
+  "observations": "Exit code 137 indicates OOM kill",
+  "tags": ["kubernetes", "oom", "memory"],
+  "confidence": "confirmed",
+  "evidence": "Alice shared kubectl output showing OOMKilled status in the channel",
+  "source": {
+    "channel": "#incident-response",
+    "participants": ["alice", "bob"]
+  },
+  "created_at": "2026-03-19"
+}
+```
+
+### IncidentReview (JSON)
+
+Output of `aiir review`. Saved as `<stem>.review.json` alongside the source report.
+
+```json
+{
+  "incident_id": "abc123def456",
+  "channel": "#incident-response",
+  "overall_score": "good",
+  "phases": [
+    {
+      "phase": "detection",
+      "estimated_duration": "~5 minutes",
+      "quality": "good",
+      "notes": "Alert fired quickly after the event."
+    },
+    {
+      "phase": "resolution",
+      "estimated_duration": "~30 minutes",
+      "quality": "adequate",
+      "notes": "Pod restart resolved the symptom; root cause analysis deferred."
+    }
+  ],
+  "communication": {
+    "overall": "Team communicated clearly throughout.",
+    "delays_observed": [],
+    "silos_observed": []
+  },
+  "role_clarity": {
+    "ic_identified": true,
+    "ic_name": "alice",
+    "gaps": [],
+    "overlaps": []
+  },
+  "tool_appropriateness": "Appropriate tools used; kubectl and log inspection were well-targeted.",
+  "strengths": ["Fast detection", "Clear communication"],
+  "improvements": ["Add runbook link in channel topic before next incident"],
+  "checklist": [
+    {"item": "Verify alert thresholds quarterly", "priority": "medium"}
   ]
 }
 ```

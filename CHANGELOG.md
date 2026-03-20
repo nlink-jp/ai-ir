@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-03-20
+
+### Added
+- **Unit tests for `analyze.activity` and `analyze.roles`** (`tests/test_analyze/test_activity.py`,
+  `tests/test_analyze/test_roles.py`): 28 new tests covering system prompt content, `analyze_*`
+  return model / invalid JSON / nonce handling, and Markdown formatter output including pipe escaping.
+- **Unit tests for `report.generator`** (`tests/test_report/test_generator.py`): 14 new tests
+  covering `make_incident_id` determinism, `generate_markdown_report` section content, and
+  `generate_json_report` structure and language field.
+- **`src/aiir/utils.py`**: New shared `format_conversation()` utility extracted from the four
+  modules that previously duplicated it (`summarizer`, `activity`, `roles`, `extractor`).
+- **`IncidentSummary.parse_timeline_strings` validator**: Normalises LLM responses that return
+  `timeline` array elements as JSON-encoded strings instead of objects, preventing a
+  `ValidationError` seen with some models.
+
+### Changed
+- **Refactor `_format_conversation`**: Removed the four duplicate implementations in
+  `analyze/summarizer.py`, `analyze/activity.py`, `analyze/roles.py`, and
+  `knowledge/extractor.py`. All now import `format_conversation` from `aiir.utils`.
+
+### Fixed
+- **`docs/*/data-format.md`**: Preprocessed JSON example now shows the correct nonce-tagged
+  wrapping (`<user_message_{nonce}>`); `sanitization_nonce` field added to the field table;
+  `Tactic` and `IncidentReview` JSON schemas added.
+- **`docs/*/knowledge-format.md`**: `confidence` and `evidence` fields added to the schema
+  example and Field Reference table; Confidence Levels explanation section added.
+- **`docs/*/maintenance.md`**: Corrected a broken reference to `CLAUDE.md` (which does not
+  exist) in the "Adding a New Category" guide; now correctly points to `knowledge-format.md`.
+
 ## [1.4.0] - 2026-03-20
 
 ### Fixed

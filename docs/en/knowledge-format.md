@@ -40,6 +40,8 @@ tags:
   - oom
   - memory
   - container
+confidence: confirmed
+evidence: "Alice shared kubectl output showing OOMKilled status in the channel"
 source:
   channel: "#incident-response"
   participants:
@@ -60,9 +62,21 @@ created_at: "2026-03-19"
 | `procedure` | string | yes | Step-by-step numbered instructions |
 | `observations` | string | yes | How to interpret results and what patterns indicate |
 | `tags` | string[] | yes | Searchable tags for discovery |
+| `confidence` | `"confirmed"` \| `"inferred"` \| `"suggested"` | yes | Evidence confidence level (see below) |
+| `evidence` | string | yes | One-sentence rationale for the confidence classification |
 | `source.channel` | string | yes | Originating Slack channel |
 | `source.participants` | string[] | yes | Participants who contributed this tactic |
 | `created_at` | string | yes | ISO date string (YYYY-MM-DD) |
+
+### Confidence Levels
+
+| Value | Meaning |
+|---|---|
+| `confirmed` | Command output or explicit result was shared in the Slack channel |
+| `inferred` | Participant mentioned running or checking something but no output was shared |
+| `suggested` | Proposed as a recommendation; no indication it was actually executed |
+
+When using tactics from the knowledge base, treat `confirmed` tactics as verified procedures and `inferred`/`suggested` tactics as candidates that warrant validation before adoption.
 
 ## Categories
 

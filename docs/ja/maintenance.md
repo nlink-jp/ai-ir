@@ -171,7 +171,7 @@ def test_linux_tool_mentioned(tool):
     assert tool in SYSTEM_PROMPT
 ```
 
-**Step 3** — `CLAUDE.md` の Knowledge Format セクションの表を更新する
+**Step 3** — `docs/en/knowledge-format.md`（および `docs/ja/knowledge-format.md`）のカテゴリ表を更新する
 
 **Step 4** — `CHANGELOG.md` に追記し、コミットする
 

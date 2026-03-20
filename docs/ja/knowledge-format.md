@@ -40,6 +40,8 @@ tags:
   - oom
   - memory
   - container
+confidence: confirmed
+evidence: "Alice shared kubectl output showing OOMKilled status in the channel"
 source:
   channel: "#incident-response"
   participants:
@@ -60,9 +62,21 @@ created_at: "2026-03-19"
 | `procedure` | string | yes | 番号付きのステップバイステップ手順 |
 | `observations` | string | yes | 結果の解釈方法と注目すべきパターン |
 | `tags` | string[] | yes | 検索・発見用のタグ |
+| `confidence` | `"confirmed"` \| `"inferred"` \| `"suggested"` | yes | 証拠の確度レベル（下記参照） |
+| `evidence` | string | yes | 確度分類の根拠を示す1文 |
 | `source.channel` | string | yes | 元の Slack チャンネル名 |
 | `source.participants` | string[] | yes | この戦術に貢献した参加者 |
 | `created_at` | string | yes | ISO 日付文字列（YYYY-MM-DD） |
+
+### 確度レベル（confidence）
+
+| 値 | 意味 |
+|---|---|
+| `confirmed` | コマンド出力や明示的な結果が Slack チャンネルに共有された（実行確認済み） |
+| `inferred` | 参加者が実行・確認したと言及しているが、出力の共有はない |
+| `suggested` | 提案のみで実際に実行された確証がない |
+
+ナレッジベースのタクティクスを利用する際は、`confirmed` を検証済み手順として扱い、`inferred` / `suggested` は採用前に別途検証することを推奨します。
 
 ## カテゴリ一覧
 

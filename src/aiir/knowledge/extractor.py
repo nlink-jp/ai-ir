@@ -8,6 +8,7 @@ from datetime import date
 
 from aiir.llm.client import LLMClient
 from aiir.models import ProcessedExport, Tactic, TacticSource
+from aiir.utils import format_conversation
 
 
 def _build_system_prompt(nonce: str) -> str:
@@ -103,7 +104,7 @@ def extract_tactics(export: ProcessedExport, client: LLMClient) -> list[Tactic]:
     """
     nonce = export.sanitization_nonce or secrets.token_hex(8)
     system_prompt = _build_system_prompt(nonce)
-    conversation_text = _format_conversation(export)
+    conversation_text = format_conversation(export)
 
     user_prompt = f"""Analyze this incident response conversation from channel {export.channel_name}:
 
@@ -156,21 +157,6 @@ Focus on specific methods, commands, and approaches that could help in future in
     return tactics
 
 
-def _format_conversation(export: ProcessedExport) -> str:
-    """Format conversation messages for LLM input.
-
-    Args:
-        export: ProcessedExport to format.
-
-    Returns:
-        Formatted conversation string.
-    """
-    lines = []
-    for msg in export.messages:
-        ts = msg.timestamp.strftime("%Y-%m-%d %H:%M:%S")
-        prefix = "[bot] " if msg.post_type == "bot" else ""
-        lines.append(f"[{ts}] {prefix}@{msg.user_name}: {msg.text}")
-    return "\n".join(lines)
 
 
 def _get_participants(export: ProcessedExport) -> list[str]:
