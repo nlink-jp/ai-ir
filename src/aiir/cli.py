@@ -805,6 +805,78 @@ def review(report_file: Path, output: Path | None, fmt: str) -> None:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# knowledge subgroup
+# ---------------------------------------------------------------------------
+
+
+@main.group("knowledge")
+def knowledge_group() -> None:
+    """Manage and export tactic knowledge documents."""
+
+
+@knowledge_group.command("export")
+@click.option(
+    "--knowledge-dir", "-k",
+    type=click.Path(path_type=Path),
+    required=True,
+    help="Directory containing tactic YAML files to convert.",
+)
+@click.option(
+    "--output-dir", "-o",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Directory to write Markdown files to (default: <knowledge-dir>-md).",
+)
+def knowledge_export(knowledge_dir: Path, output_dir: Path | None) -> None:
+    """Export tactic YAML files as individual Markdown documents for RAG ingestion.
+
+    Reads all ``tac-*.yaml`` files from KNOWLEDGE_DIR and writes one
+    ``*.md`` file per tactic to OUTPUT_DIR.  Existing files are overwritten.
+    """
+    import yaml
+    from aiir.models import Tactic, TacticSource
+    from aiir.knowledge.formatter import save_tactics_markdown
+
+    knowledge_dir = knowledge_dir.resolve()
+    if not knowledge_dir.exists():
+        err_console.print(f"[red][ERROR] Directory not found: {knowledge_dir}[/red]")
+        sys.exit(1)
+
+    yaml_files = sorted(knowledge_dir.rglob("*.yaml"))
+    tactics: list[Tactic] = []
+    skipped = 0
+    for path in yaml_files:
+        try:
+            data = yaml.safe_load(path.read_text(encoding="utf-8"))
+            if not isinstance(data, dict) or not str(data.get("id", "")).startswith("tac-"):
+                skipped += 1
+                continue
+            # Ensure nested source model
+            if isinstance(data.get("source"), dict):
+                data["source"] = TacticSource(**data["source"])
+            tactics.append(Tactic.model_validate(data))
+        except Exception as e:
+            err_console.print(f"[yellow][WARN] Skipping {path.name}: {e}[/yellow]")
+            skipped += 1
+
+    if not tactics:
+        err_console.print("[red][ERROR] No valid tactic YAML files found.[/red]")
+        sys.exit(1)
+
+    dest = output_dir.resolve() if output_dir else knowledge_dir.parent / (knowledge_dir.name + "-md")
+    saved = save_tactics_markdown(tactics, dest)
+
+    err_console.print(
+        Panel(
+            f"Tactics exported: {len(saved)}\n"
+            + (f"Skipped:          {skipped}\n" if skipped else "")
+            + f"Output dir:       {dest}",
+            title="[bold green]Knowledge Export Complete[/bold green]",
+        )
+    )
+
+
 @main.command()
 @click.argument("data_dir", type=click.Path(path_type=Path), default=Path("."))
 @click.option("--port", "-p", default=8765, show_default=True, help="Port to listen on (localhost only)")

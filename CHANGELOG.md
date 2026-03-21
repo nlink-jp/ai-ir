@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-03-21
+
+### Added
+- **`aiir knowledge export` command**: Converts existing tactic YAML files to individual
+  Markdown documents for RAG ingestion. One file per tactic, with H1 title and H2 sections
+  (Purpose, Tools, Procedure, Observations, Evidence) optimised for semantic retrieval.
+  Usage: `aiir knowledge export -k ./knowledge -o ./knowledge-md`
+- **`knowledge/formatter.py`**: `tactic_to_markdown()` and `save_tactics_markdown()` functions.
+- 17 new tests for `tactic_to_markdown` and `save_tactics_markdown` in `test_formatter.py`.
+
 ## [1.5.0] - 2026-03-20
 
 ### Added

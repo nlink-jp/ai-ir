@@ -4,7 +4,7 @@ import yaml
 import pytest
 
 from aiir.models import Tactic, TacticSource
-from aiir.knowledge.formatter import save_tactics, tactic_to_yaml
+from aiir.knowledge.formatter import save_tactics, save_tactics_markdown, tactic_to_markdown, tactic_to_yaml
 
 
 def _make_tactic(**kwargs) -> Tactic:
@@ -194,3 +194,111 @@ def test_save_tactics_unicode_content(tmp_path):
     saved = save_tactics([tactic], tmp_path / "knowledge")
     content = saved[0].read_text(encoding="utf-8")
     assert "エラーを探す" in content
+
+
+# ---------------------------------------------------------------------------
+# tactic_to_markdown
+# ---------------------------------------------------------------------------
+
+
+def test_tactic_to_markdown_returns_string():
+    assert isinstance(tactic_to_markdown(_make_tactic()), str)
+
+
+def test_tactic_to_markdown_title_as_h1():
+    md = tactic_to_markdown(_make_tactic(title="Check Logs"))
+    assert md.startswith("# Check Logs")
+
+
+def test_tactic_to_markdown_contains_id():
+    md = tactic_to_markdown(_make_tactic(id="tac-20260319-001"))
+    assert "tac-20260319-001" in md
+
+
+def test_tactic_to_markdown_contains_purpose():
+    md = tactic_to_markdown(_make_tactic(purpose="Find error patterns in logs"))
+    assert "Find error patterns in logs" in md
+
+
+def test_tactic_to_markdown_contains_tools():
+    md = tactic_to_markdown(_make_tactic(tools=["grep", "awk"]))
+    assert "`grep`" in md
+    assert "`awk`" in md
+
+
+def test_tactic_to_markdown_contains_procedure():
+    md = tactic_to_markdown(_make_tactic(procedure="1. Run grep\n2. Check output"))
+    assert "1. Run grep" in md
+
+
+def test_tactic_to_markdown_contains_observations():
+    md = tactic_to_markdown(_make_tactic(observations="High count means severe issue"))
+    assert "High count means severe issue" in md
+
+
+def test_tactic_to_markdown_contains_evidence_when_set():
+    md = tactic_to_markdown(_make_tactic(
+        confidence="confirmed",
+        evidence="alice pasted grep output at 10:15",
+    ))
+    assert "## Evidence" in md
+    assert "alice pasted grep output at 10:15" in md
+
+
+def test_tactic_to_markdown_no_evidence_section_when_empty():
+    md = tactic_to_markdown(_make_tactic(evidence=""))
+    assert "## Evidence" not in md
+
+
+def test_tactic_to_markdown_contains_source_channel():
+    md = tactic_to_markdown(_make_tactic(
+        source=TacticSource(channel="#incident-2026", participants=["alice"])
+    ))
+    assert "#incident-2026" in md
+
+
+def test_tactic_to_markdown_unicode_preserved():
+    md = tactic_to_markdown(_make_tactic(purpose="エラーを探す"))
+    assert "エラーを探す" in md
+
+
+# ---------------------------------------------------------------------------
+# save_tactics_markdown
+# ---------------------------------------------------------------------------
+
+
+def test_save_tactics_markdown_creates_files(tmp_path):
+    tactics = [_make_tactic(id="tac-001", title="Test Tactic")]
+    saved = save_tactics_markdown(tactics, tmp_path / "knowledge-md")
+    assert len(saved) == 1
+    assert saved[0].exists()
+
+
+def test_save_tactics_markdown_file_extension(tmp_path):
+    saved = save_tactics_markdown([_make_tactic(id="tac-001")], tmp_path)
+    assert saved[0].suffix == ".md"
+
+
+def test_save_tactics_markdown_filename_format(tmp_path):
+    tactic = _make_tactic(id="tac-20260319-001", title="Check Pod Logs For OOM")
+    saved = save_tactics_markdown([tactic], tmp_path)
+    assert saved[0].name.startswith("tac-20260319-001-")
+    assert saved[0].name.endswith(".md")
+
+
+def test_save_tactics_markdown_content_is_valid_markdown(tmp_path):
+    tactic = _make_tactic(id="tac-001", title="My Tactic", purpose="Test purpose")
+    saved = save_tactics_markdown([tactic], tmp_path)
+    content = saved[0].read_text(encoding="utf-8")
+    assert content.startswith("# My Tactic")
+    assert "Test purpose" in content
+
+
+def test_save_tactics_markdown_creates_directory(tmp_path):
+    output_dir = tmp_path / "new" / "nested"
+    save_tactics_markdown([_make_tactic()], output_dir)
+    assert output_dir.exists()
+
+
+def test_save_tactics_markdown_empty_list(tmp_path):
+    assert save_tactics_markdown([], tmp_path) == []
