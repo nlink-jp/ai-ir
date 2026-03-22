@@ -167,6 +167,23 @@ uv run aiir serve --no-browser
 The server binds to `127.0.0.1` only and is read-only. Open http://localhost:8765
 in your browser to view the dashboard.
 
+### Web UI screenshots
+
+<table>
+<tr>
+<td><img src="screenshot/01_dashboard.png" alt="Dashboard" width="400"/><br><sub>Dashboard — incident list and knowledge summary</sub></td>
+<td><img src="screenshot/02_summary.png" alt="Incident summary" width="400"/><br><sub>Summary tab — timeline, root cause, resolution</sub></td>
+</tr>
+<tr>
+<td><img src="screenshot/03_staff_activities.png" alt="Staff activities" width="400"/><br><sub>Activity tab — per-participant actions and findings</sub></td>
+<td><img src="screenshot/04_roles_and relationships.png" alt="Roles and relationships" width="400"/><br><sub>Roles tab — inferred roles and team relationships</sub></td>
+</tr>
+<tr>
+<td><img src="screenshot/05_tactics.png" alt="Extracted tactics" width="400"/><br><sub>Tactics tab — reusable investigation tactics extracted from the conversation</sub></td>
+<td><img src="screenshot/06_review.png" alt="Process review" width="400"/><br><sub>Review tab — IR process quality assessment and improvement checklist</sub></td>
+</tr>
+</table>
+
 ## Security
 
 - **No external transmission**: Only the configured LLM endpoint receives data
