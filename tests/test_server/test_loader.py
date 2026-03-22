@@ -227,3 +227,24 @@ def test_load_review_falls_back_to_english_when_no_localised(tmp_path):
     result = load_review(tmp_path, "report.ja.json", lang="ja")
     assert result is not None
     assert result["overall_score"] == "good"
+
+
+def test_load_review_multi_suffix_report_name(tmp_path):
+    """name.report.ja.json should resolve to name.review.ja.json (strips .report and .ja)."""
+    en_review = dict(SAMPLE_REVIEW, overall_score="en_version")
+    ja_review = dict(SAMPLE_REVIEW, overall_score="ja_version", lang="ja")
+    (tmp_path / "incident.report.ja.json").write_text(_json.dumps(SAMPLE_REPORT))
+    (tmp_path / "incident.review.json").write_text(_json.dumps(en_review))
+    (tmp_path / "incident.review.ja.json").write_text(_json.dumps(ja_review))
+    result = load_review(tmp_path, "incident.report.ja.json", lang="ja")
+    assert result is not None
+    assert result["overall_score"] == "ja_version"
+
+
+def test_load_review_multi_suffix_falls_back_to_en(tmp_path):
+    """name.report.ja.json with no .ja review falls back to name.review.json."""
+    (tmp_path / "incident.report.ja.json").write_text(_json.dumps(SAMPLE_REPORT))
+    (tmp_path / "incident.review.json").write_text(_json.dumps(SAMPLE_REVIEW))
+    result = load_review(tmp_path, "incident.report.ja.json", lang="ja")
+    assert result is not None
+    assert result["overall_score"] == "good"

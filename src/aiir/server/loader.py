@@ -143,8 +143,8 @@ def load_review(data_dir: Path, report_rel_path: str, lang: str = "en") -> dict 
     try:
         report_path = Path(report_rel_path)
         # Strip language suffix (e.g. "report.ja" → "report")
-        stem = report_path.stem  # "report.ja" or "report"
-        if "." in stem:
+        stem = report_path.stem  # "report.ja" or "report" or "name.report.ja"
+        while "." in stem:
             stem = stem.rsplit(".", 1)[0]
 
         # Try localised review first, then fall back to English
