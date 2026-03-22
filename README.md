@@ -1,5 +1,7 @@
 # ai-ir: AI-powered Incident Response Analysis Toolset
 
+[日本語](README.ja.md)
+
 `ai-ir` analyzes incident response Slack conversation history exported via
 [scat](https://github.com/magifd2/scat) or [stail](https://github.com/magifd2/stail)
 to generate actionable reports and reusable knowledge.
