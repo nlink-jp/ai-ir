@@ -169,3 +169,9 @@ def test_prompt_includes_confidence_in_json_schema():
 def test_prompt_includes_evidence_in_json_schema():
     """The JSON schema example must include the evidence field."""
     assert '"evidence"' in SYSTEM_PROMPT
+
+
+def test_prompt_instructs_preserve_defanged_iocs():
+    """Extractor prompt must instruct the LLM to preserve defanged IoC forms."""
+    assert "hxxp" in SYSTEM_PROMPT
+    assert "refang" in SYSTEM_PROMPT

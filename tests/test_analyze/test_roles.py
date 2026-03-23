@@ -94,6 +94,12 @@ def test_system_prompt_requires_json():
     assert "relationships" in prompt
 
 
+def test_system_prompt_instructs_preserve_defanged_iocs():
+    prompt = _build_system_prompt("x")
+    assert "hxxp" in prompt
+    assert "refang" in prompt
+
+
 # ---------------------------------------------------------------------------
 # analyze_roles
 # ---------------------------------------------------------------------------
