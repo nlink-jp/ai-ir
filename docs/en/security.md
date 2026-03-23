@@ -29,6 +29,24 @@ further processing:
 
 Defanging is applied to the `text` field of every message during `aiir ingest`.
 
+#### Two-layer defence against LLM output refanging
+
+LLMs can "refang" IoCs in generated narrative text — producing `http://evil.com`
+from a defanged input `hxxp://evil[.]com`. Two complementary controls mitigate this:
+
+1. **Prompt instruction** (`analyze/`, `knowledge/extractor.py`): All analyser system
+   prompts include an explicit "IoC SAFETY" directive telling the LLM to reproduce
+   defanged forms exactly as-is and not to restore them.
+
+2. **Post-processing defang** (`defang_dict()` in `report/generator.py`): After the LLM
+   response is parsed, `defang_dict()` recursively applies `defang_text()` to all string
+   fields in the `summary`, `activity`, `roles`, and `tactics` sections before the data is
+   stored or rendered. The `metadata` section (channel name, timestamps) is excluded as it
+   contains no LLM-generated content.
+
+The prompt instruction acts as the first line of defence; `defang_dict()` acts as a safety
+net that catches anything the LLM produces despite the instruction.
+
 ### 2. Prompt Injection Defense
 
 **Risk**: An attacker could embed instruction-overriding text in Slack messages
@@ -147,5 +165,7 @@ On headless systems without a working keyring backend, the env var / `.env` fall
   Use a local/self-hosted LLM for maximum privacy.
 - **Imperfect defanging**: Complex encoding (URL encoding, Unicode lookalikes) may
   evade defanging. Manual review of preprocessed output is recommended for critical incidents.
+  LLM output refanging is mitigated by the prompt instruction and `defang_dict()` post-processing,
+  but novel LLM behaviour may still produce fanged IoCs in edge cases.
 - **Imperfect injection detection**: Novel injection techniques may bypass pattern matching.
   The wrapping strategy provides defense-in-depth.
