@@ -30,6 +30,7 @@ from aiir.models import (
     RoleAnalysis,
     Tactic,
 )
+from aiir.parser.defang import defang_dict, defang_text
 
 
 def make_incident_id(export: ProcessedExport) -> str:
@@ -199,7 +200,8 @@ def generate_markdown_report(
                 lines.append(f"**Tags**: {', '.join(tactic.tags)}")
                 lines.append("")
 
-    return "\n".join(lines)
+    # Defang any IoCs the LLM may have re-introduced in narrative fields
+    return defang_text("\n".join(lines))[0]
 
 
 def generate_json_report(
@@ -223,6 +225,8 @@ def generate_json_report(
     Returns:
         Dictionary suitable for JSON serialization.
     """
+    # Defang any IoCs the LLM may have re-introduced in narrative fields.
+    # metadata is excluded as it contains channel names and timestamps, not LLM output.
     return {
         "incident_id": make_incident_id(export),
         "lang": lang,
@@ -233,8 +237,8 @@ def generate_json_report(
             "message_count": len(export.messages),
             "security_warnings": export.security_warnings,
         },
-        "summary": summary.model_dump(),
-        "activity": activity.model_dump(),
-        "roles": roles.model_dump(),
-        "tactics": [t.model_dump() for t in tactics],
+        "summary": defang_dict(summary.model_dump()),
+        "activity": defang_dict(activity.model_dump()),
+        "roles": defang_dict(roles.model_dump()),
+        "tactics": [defang_dict(t.model_dump()) for t in tactics],
     }

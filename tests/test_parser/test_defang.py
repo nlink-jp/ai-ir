@@ -211,3 +211,42 @@ def test_defang_text_macos_log_line():
     defanged, iocs = defang_text(text)
     assert "10[.]20[.]30[.]40" in defanged
     assert "fxxle://" in defanged
+
+
+# ---------------------------------------------------------------------------
+# defang_dict
+# ---------------------------------------------------------------------------
+
+from aiir.parser.defang import defang_dict
+
+
+def test_defang_dict_defangs_string_values():
+    result = defang_dict({"key": "found at http://evil.com/path"})
+    assert result["key"] == "found at hxxp://evil[.]com/path"
+
+
+def test_defang_dict_leaves_non_strings_unchanged():
+    result = defang_dict({"count": 42, "flag": True, "empty": None})
+    assert result == {"count": 42, "flag": True, "empty": None}
+
+
+def test_defang_dict_recurses_into_nested_dict():
+    result = defang_dict({"outer": {"inner": "connect to 192.168.1.1"}})
+    assert result["outer"]["inner"] == "connect to 192[.]168[.]1[.]1"
+
+
+def test_defang_dict_recurses_into_list():
+    result = defang_dict({"items": ["clean text", "http://bad.example.com"]})
+    assert result["items"][0] == "clean text"
+    assert "hxxp://" in result["items"][1]
+
+
+def test_defang_dict_handles_plain_list():
+    result = defang_dict(["http://evil.com", "safe"])
+    assert "hxxp://" in result[0]
+    assert result[1] == "safe"
+
+
+def test_defang_dict_passes_through_scalar():
+    assert defang_dict(99) == 99
+    assert defang_dict(None) is None

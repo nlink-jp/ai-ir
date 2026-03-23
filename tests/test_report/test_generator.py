@@ -240,3 +240,42 @@ def test_json_report_incident_id_matches_make_incident_id():
         export, _make_summary(), _make_activity(), _make_roles(), []
     )
     assert report["incident_id"] == make_incident_id(export)
+
+
+def test_json_report_defangs_iocs_in_summary():
+    """IoCs the LLM re-introduces in narrative fields are defanged in JSON output."""
+    summary = IncidentSummary(
+        title="Outage",
+        severity="high",
+        summary="Attacker connected to http://evil.com/c2 from 10.0.0.1",
+        root_cause="Backdoor at 10.0.0.1",
+        resolution="Blocked",
+        affected_systems=["web-prod"],
+        timeline=[],
+    )
+    report = generate_json_report(
+        _make_export(), summary, _make_activity(), _make_roles(), []
+    )
+    s = report["summary"]
+    assert "http://evil.com" not in s["summary"]
+    assert "hxxp://evil[.]com" in s["summary"]
+    assert "10.0.0.1" not in s["root_cause"]
+    assert "10[.]0[.]0[.]1" in s["root_cause"]
+
+
+def test_markdown_report_defangs_iocs():
+    """IoCs the LLM re-introduces are defanged in Markdown output."""
+    summary = IncidentSummary(
+        title="Outage",
+        severity="high",
+        summary="Attacker used http://evil.com/c2",
+        root_cause="Clean",
+        resolution="Clean",
+        affected_systems=[],
+        timeline=[],
+    )
+    md = generate_markdown_report(
+        _make_export(), summary, _make_activity(), _make_roles(), []
+    )
+    assert "http://evil.com" not in md
+    assert "hxxp://evil[.]com" in md

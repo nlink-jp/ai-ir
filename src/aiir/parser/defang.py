@@ -269,6 +269,29 @@ def defang_text(text: str) -> tuple[str, list[IoC]]:
     return result, final_iocs
 
 
+def defang_dict(obj: object) -> object:
+    """Recursively defang all string values in a dict or list.
+
+    Applies :func:`defang_text` to every string leaf so that IoCs re-introduced
+    by the LLM in generated narrative fields are neutralised before the data is
+    stored or rendered.  Non-string values (numbers, booleans, ``None``) are
+    passed through unchanged.
+
+    Args:
+        obj: A dict, list, or scalar value returned from a Pydantic ``model_dump()``.
+
+    Returns:
+        The same structure with all string values defanged.
+    """
+    if isinstance(obj, dict):
+        return {k: defang_dict(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [defang_dict(item) for item in obj]
+    if isinstance(obj, str):
+        return defang_text(obj)[0]
+    return obj
+
+
 def _overlaps(
     start: int, end: int, replacements: list[tuple[int, int, str, IoC]]
 ) -> bool:
