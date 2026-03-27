@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.4] - 2026-03-28
+
+### Changed
+- Migrated to nlink-jp organisation — updated documentation URLs (`scat`, `stail`, `lite-rag`)
+- Added `[project.urls]` to `pyproject.toml`
+
 ## [1.6.3] - 2026-03-23
 
 ### Fixed
@@ -464,5 +470,6 @@ into a stable, feature-complete toolset.
 - Security-first design: no external transmission except configured LLM endpoint
 - Documentation: architecture, data format, knowledge format, security considerations
 
-[Unreleased]: https://github.com/nlink-jp/ai-ir/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/nlink-jp/ai-ir/releases/tag/v0.1.0
+[Unreleased]: https://github.com/nlink-jp/ai-ir/compare/v1.6.4...HEAD
+[1.6.4]: https://github.com/nlink-jp/ai-ir/compare/v1.6.3...v1.6.4
+[1.6.3]: https://github.com/nlink-jp/ai-ir/releases/tag/v1.6.3
